@@ -13,7 +13,7 @@
 // =============================================
 
 // ⚠️ 필수 수정 1: Google Cloud Console → 사용자 인증 정보 → OAuth 2.0 클라이언트 ID
-const GOOGLE_CLIENT_ID = "여기에_복사한_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "525190783722-vm0ip4dli22ld0i2lgkreqv7165uc3k0.apps.googleusercontent.com";
 
 // ⚠️ 필수 수정 2: wrangler deploy 후 실제 Workers URL로 교체
 const API_BASE = "https://counttimeout-backend.여기에_서브도메인.workers.dev";

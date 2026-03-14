@@ -9,14 +9,14 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 # ⚠️ 필수 수정: Cloudflare 대시보드 우측 상단의 Account ID로 교체
-account_id = "여기에_ACCOUNT_ID_입력"
+account_id = "12ed2454719caeee89fe4e8cecbd5c0b"
 
 # --- Cloudflare D1 데이터베이스 연결 ---
 [[d1_databases]]
 binding = "DB"                          # Workers 코드에서 env.DB로 접근
 database_name = "stayalive_db"          # D1 생성 시 사용한 이름
 # ⚠️ 필수 수정: wrangler d1 create stayalive_db 실행 후 나오는 ID로 교체
-database_id = "여기에_D1_DATABASE_ID_입력"
+database_id = "eed9ed8d-80d4-4a2d-991c-18ff88d8353b"
 
 # --- Cloudflare R2 스토리지 연결 (아바타 이미지 등) ---
 [[r2_buckets]]
