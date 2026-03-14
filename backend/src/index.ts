@@ -271,8 +271,10 @@ async function handleNicknameSet(request: Request, env: Env, corsHeaders: Record
 
   // daily_record의 nickname도 동기화
   await env.DB.prepare(`
-    UPDATE daily_record SET nickname = ? WHERE user_id = ?
-  `).bind(nickname.trim(), userId).run();
+    INSERT INTO daily_record (user_id, nickname)
+    VALUES (?, ?)
+    ON CONFLICT (user_id) DO UPDATE SET nickname = excluded.nickname
+  `).bind(userId, nickname.trim()).run();
 
   return jsonResponse({ success: true, nickname: nickname.trim() }, corsHeaders);
 }
@@ -336,8 +338,10 @@ async function handleNicknameChange(request: Request, env: Env, corsHeaders: Rec
 
   // daily_record 닉네임도 동기화
   await env.DB.prepare(`
-    UPDATE daily_record SET nickname = ? WHERE user_id = ?
-  `).bind(nickname.trim(), userId).run();
+    INSERT INTO daily_record (user_id, nickname)
+    VALUES (?, ?)
+    ON CONFLICT (user_id) DO UPDATE SET nickname = excluded.nickname
+  `).bind(userId, nickname.trim()).run();
 
   return jsonResponse({ success: true, nickname: nickname.trim() }, corsHeaders);
 }
@@ -427,14 +431,20 @@ async function handleUpdateTimer(request: Request, env: Env, corsHeaders: Record
     return jsonResponse({ error: "중복 탭 감지됨", blocked: true }, corsHeaders, 409);
   }
 
+  const nickname = await getUserCurrentNickname(userId, env);
+  if (!nickname) {
+    return jsonResponse({ error: "닉네임을 찾을 수 없습니다." }, corsHeaders, 400);
+  }
+
   await env.DB.prepare(`
-    UPDATE daily_record
-    SET today_accumulated_ms = ?,
-        current_tab_id = ?,
-        last_start_time = ?,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE user_id = ?
-  `).bind(accumulatedMs, tabId, Date.now(), userId).run();
+    INSERT INTO daily_record (user_id, nickname, today_accumulated_ms, current_tab_id, last_start_time, updated_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT (user_id) DO UPDATE SET
+      today_accumulated_ms = excluded.today_accumulated_ms,
+      current_tab_id = excluded.current_tab_id,
+      last_start_time = excluded.last_start_time,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(userId, nickname, accumulatedMs, tabId, Date.now()).run();
 
   return jsonResponse({ success: true }, corsHeaders);
 }
@@ -466,9 +476,15 @@ async function handleSendChat(request: Request, env: Env, corsHeaders: Record<st
   const userId = await getAuthUserId(request, env);
   if (!userId) return jsonResponse({ error: "인증 필요" }, corsHeaders, 401);
 
-  const { message, liveTime, nickname } = await request.json() as {
-    message: string; liveTime: string; nickname: string;
+  const { message, liveTime } = await request.json() as {
+    message: string; liveTime: string;
   };
+
+  // ⚠️ 보안: 프론트에서 받은 닉네임 사용하지 않고, DB에서 직접 조회
+  const nickname = await getUserCurrentNickname(userId, env);
+  if (!nickname) {
+    return jsonResponse({ error: "유저 정보를 찾을 수 없습니다." }, corsHeaders, 404);
+  }
 
   // 메시지 유효성 검사 (백엔드에서도 이중 검증)
   if (!message || message.length < 2 || message.length > 200) {
@@ -612,6 +628,17 @@ function jsonResponse(data: unknown, corsHeaders: Record<string, string>, status
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
+}
+
+// =============================================
+// 유틸리티: 유저의 현재 닉네임 조회
+// =============================================
+async function getUserCurrentNickname(userId: string, env: Env): Promise<string | null> {
+  const user = await env.DB.prepare(
+    "SELECT name, nickname FROM users WHERE id = ?"
+  ).bind(userId).first() as any;
+
+  return user?.nickname || user?.name || null;
 }
 
 
