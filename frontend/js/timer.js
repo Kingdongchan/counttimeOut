@@ -150,6 +150,17 @@ async function initTimer() {
     // DB에 저장된 누적 ms를 기준값으로 설정
     baseAccumulatedMs = data.today_accumulated_ms || 0;
 
+    // 즉시 타이머 UI 업데이트
+    const initialTime = transTime(baseAccumulatedMs);
+    const hoursEl = document.getElementById("timer-hours");
+    const minsEl = document.getElementById("timer-minutes");
+    const secsEl = document.getElementById("timer-seconds");
+    if (hoursEl) hoursEl.textContent = initialTime.h;
+    if (minsEl) minsEl.textContent = initialTime.m;
+    if (secsEl) secsEl.textContent = initialTime.s;
+    const headerTimer = document.getElementById("header-timer");
+    if (headerTimer) headerTimer.textContent = `${initialTime.h}:${initialTime.m}:${initialTime.s}`;
+
     // 현재 세션 시작 시점 기록 (서버 보정 시간 기준)
     sessionStartTime = getServerNow();
 

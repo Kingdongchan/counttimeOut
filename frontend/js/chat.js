@@ -111,7 +111,7 @@ async function sendChat() {
       body: JSON.stringify({
         message,
         liveTime,
-        nickname: userInfo.name || "익명",
+        nickname: userInfo.nickname || "익명",
       }),
     });
 
@@ -119,7 +119,7 @@ async function sendChat() {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
         type: "chat",
-        nickname: userInfo.name || "익명",
+        nickname: userInfo.nickname || "익명",
         message,
         liveTime,
         created_at: new Date().toISOString(),
@@ -128,7 +128,7 @@ async function sendChat() {
 
     // 내 화면에도 즉시 렌더링 (자신의 메시지는 WebSocket echo 없이 직접 추가)
     renderChat({
-      nickname: userInfo.name || "익명",
+      nickname: userInfo.nickname || "익명",
       message,
       liveTime,
       isYesterdayKing: userInfo.isYesterdayKing || false,
@@ -304,7 +304,7 @@ function connectWebSocket() {
         // 타입에 따른 처리
         if (data.type === "chat") {
           // 다른 유저의 메시지 렌더링 (내 메시지는 sendChat에서 직접 처리)
-          const myNickname = JSON.parse(localStorage.getItem("userInfo") || "{}").name;
+          const myNickname = JSON.parse(localStorage.getItem("userInfo") || "{}").nickname;
           if (data.nickname !== myNickname) {
             renderChat(data);
           }

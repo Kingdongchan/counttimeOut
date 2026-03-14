@@ -179,15 +179,14 @@ async function handleGoogleAuth(request: Request, env: Env, corsHeaders: Record<
     VALUES (?, ?)
   `).bind(googleUser.sub, googleUser.name).run();
 
+  // 갓 등록/갱신된 최신 유저 정보 조회 (nickname 포함)
+  const freshUser = await env.DB.prepare(
+    "SELECT id, name, nickname, picture, email, role FROM users WHERE id = ?"
+  ).bind(googleUser.sub).first();
+
   return jsonResponse({
     sessionId,
-    user: {
-      id: googleUser.sub,
-      name: googleUser.name,
-      picture: googleUser.picture,
-      email: googleUser.email,
-      role,
-    }
+    user: freshUser
   }, corsHeaders);
 }
 
@@ -482,9 +481,6 @@ async function handleSendChat(request: Request, env: Env, corsHeaders: Record<st
 
   // ⚠️ 보안: 프론트에서 받은 닉네임 사용하지 않고, DB에서 직접 조회
   const nickname = await getUserCurrentNickname(userId, env);
-  if (!nickname) {
-    return jsonResponse({ error: "유저 정보를 찾을 수 없습니다." }, corsHeaders, 404);
-  }
 
   // 메시지 유효성 검사 (백엔드에서도 이중 검증)
   if (!message || message.length < 2 || message.length > 200) {
@@ -521,10 +517,31 @@ async function handleChatHistory(request: Request, env: Env, corsHeaders: Record
 // [WebSocket] Durable Objects로 실시간 채팅 연결
 // =============================================
 async function handleWebSocket(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  const url = new URL(request.url);
+  const token = url.searchParams.get("token");
+
+  if (!token) {
+    return new Response("인증 토큰이 없습니다.", { status: 401 });
+  }
+  
+  // 세션 토큰으로 유저 ID 조회
+  const userId = await getAuthUserId(request, env, token);
+  if (!userId) {
+    return new Response("유효하지 않은 토큰입니다.", { status: 401 });
+  }
+
+  // 유저 닉네임 조회
+  const nickname = await getUserCurrentNickname(userId, env);
+
   // 전 세계 단일 채팅방 (싱글톤 패턴)
   const id = env.CHAT_ROOM.idFromName("global-chat");
   const chatRoom = env.CHAT_ROOM.get(id);
-  return chatRoom.fetch(request);
+
+  // DO에 유저 정보와 함께 요청 전달
+  const newRequest = new Request(request.url, request);
+  newRequest.headers.set("X-User-Nickname", nickname);
+  
+  return chatRoom.fetch(newRequest);
 }
 
 
@@ -608,8 +625,8 @@ async function midnightReset(env: Env): Promise<void> {
 // =============================================
 // 유틸리티: 세션 토큰으로 user_id 조회
 // =============================================
-async function getAuthUserId(request: Request, env: Env): Promise<string | null> {
-  const sessionId = request.headers.get("Authorization")?.replace("Bearer ", "");
+async function getAuthUserId(request: Request, env: Env, token?: string): Promise<string | null> {
+  const sessionId = token || request.headers.get("Authorization")?.replace("Bearer ", "");
   if (!sessionId) return null;
 
   const session = await env.DB.prepare(
@@ -633,12 +650,12 @@ function jsonResponse(data: unknown, corsHeaders: Record<string, string>, status
 // =============================================
 // 유틸리티: 유저의 현재 닉네임 조회
 // =============================================
-async function getUserCurrentNickname(userId: string, env: Env): Promise<string | null> {
+async function getUserCurrentNickname(userId: string, env: Env): Promise<string> {
   const user = await env.DB.prepare(
     "SELECT name, nickname FROM users WHERE id = ?"
   ).bind(userId).first() as any;
 
-  return user?.nickname || user?.name || null;
+  return user?.nickname || user?.name || "익명";
 }
 
 
@@ -647,7 +664,7 @@ async function getUserCurrentNickname(userId: string, env: Env): Promise<string 
 // 목적: WebSocket 연결 유지 및 메시지 브로드캐스트
 // =============================================
 export class ChatRoom {
-  private sessions: Set<WebSocket> = new Set();
+  private sessions: Map<WebSocket, { nickname: string }> = new Map();
   private state: DurableObjectState;
 
   constructor(state: DurableObjectState) {
@@ -655,6 +672,12 @@ export class ChatRoom {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const nickname = request.headers.get("X-User-Nickname");
+
+    if (!nickname) {
+      return new Response("유저 정보가 없습니다.", { status: 401 });
+    }
+    
     // WebSocket 업그레이드 확인
     const upgradeHeader = request.headers.get("Upgrade");
     if (upgradeHeader !== "websocket") {
@@ -664,17 +687,43 @@ export class ChatRoom {
     // WebSocket 쌍 생성
     const [client, server] = Object.values(new WebSocketPair());
 
-    // 새 연결 등록
-    this.sessions.add(server);
+    // 새 연결 등록 및 유저 정보 저장
     server.accept();
+    this.sessions.set(server, { nickname });
 
-    // 메시지 수신 시 전체 브로드캐스트
+    // 메시지 수신 시 서버 주도 메시지 재구성 후 전체 브로드캐스트
     server.addEventListener("message", (event: MessageEvent) => {
-      this.broadcast(event.data as string, server);
+      try {
+        const incomingData = JSON.parse(event.data as string);
+        const message = incomingData.message;
+
+        if (typeof message !== 'string' || message.length < 1 || message.length > 200) {
+          return; // 유효하지 않은 메시지는 무시
+        }
+
+        const senderNickname = this.sessions.get(server)?.nickname || "익명";
+        
+        const broadcastData = JSON.stringify({
+          nickname: senderNickname,
+          message: message,
+          type: "chat",
+          timestamp: Date.now(),
+        });
+
+        this.broadcast(broadcastData, server);
+
+      } catch (e) {
+        // JSON 파싱 실패 등 오류 무시
+      }
     });
 
     // 연결 종료 시 세션 목록에서 제거
     server.addEventListener("close", () => {
+      this.sessions.delete(server);
+    });
+
+    // 에러 처리
+    server.addEventListener("error", (err) => {
       this.sessions.delete(server);
     });
 
@@ -683,7 +732,7 @@ export class ChatRoom {
 
   // 모든 연결된 클라이언트에게 메시지 전송 (발신자 제외 옵션)
   private broadcast(message: string, sender?: WebSocket): void {
-    this.sessions.forEach((session) => {
+    this.sessions.forEach((sessionInfo, session) => {
       if (session !== sender && session.readyState === WebSocket.READY_STATE_OPEN) {
         session.send(message);
       }
