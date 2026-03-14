@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<!--
+  =============================================
+  frontend/index.html
+  Killcount - 생존 시간 경쟁 게임
+  디자인: Stitch 초안 기반, 네이비 다크 테마
+  ⚠️ 배포 전 확인: API_BASE URL을 실제 Workers URL로 교체 (auth.js, timer.js, chat.js)
+  =============================================
+-->
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Killcount</title>
+  <meta name="description" content="실시간 생존 시간 경쟁 플랫폼" />
+
+  <!-- Tailwind CSS (CDN - 배포 시 빌드 방식 권장) -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+  <!-- 폰트: Space Grotesk (디스플레이) -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- 머티리얼 아이콘 -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind 커스텀 설정 -->
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: "#f24a0d",
+            "background-dark": "#0a0f1d",
+            "navy-accent": "#1a243d",
+            "glass-white": "rgba(255, 255, 255, 0.05)",
+            "glass-border": "rgba(255, 255, 255, 0.1)",
+          },
+          fontFamily: {
+            display: ["Space Grotesk", "sans-serif"],
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px",
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* ==================== 글로벌 스타일 ==================== */
+    body {
+      background: radial-gradient(circle at top right, #1a243d 0%, #0a0f1d 100%);
+    }
+
+    /* 유리 효과 (글래스모피즘) */
+    .glass {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* 타이머 숫자 발광 효과 */
+    .timer-glow {
+      text-shadow: 0 0 20px rgba(242, 74, 13, 0.4);
+    }
+
+    /* 스크롤바 숨김 (채팅창) */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* 채팅 메시지 페이드 인 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    /* 탭 차단 오버레이 */
+    #tab-block-overlay {
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+  </style>
+</head>
+
+<body class="font-display text-slate-100 min-h-screen selection:bg-primary/30 overflow-x-hidden">
+
+  <!-- =============================================
+       탭 중복 차단 오버레이
+       singleTabGuard()가 감지 시 표시
+       ============================================= -->
+  <div
+    id="tab-block-overlay"
+    class="hidden fixed inset-0 z-50 bg-background-dark/80 flex flex-col items-center justify-center gap-4"
+  >
+    <span class="material-symbols-outlined text-primary text-6xl">tab_unselected</span>
+    <h2 class="text-2xl font-bold text-white">다중 탭 감지</h2>
+    <p id="tab-block-message" class="text-slate-400 text-center max-w-xs">
+      다른 탭에서 이미 실행 중입니다.
+    </p>
+    <!-- 이 탭에서 계속하기 버튼 -->
+    <button
+      onclick="resumeTimer()"
+      class="mt-2 bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all"
+    >
+      이 탭에서 계속하기
+    </button>
+  </div>
+
+
+  <!-- =============================================
+       배경 장식: 다른 유저들의 타이머 카드 (비활성 레이어)
+       실제 데이터는 API로 교체 가능
+       ============================================= -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden opacity-20">
+    <div class="absolute top-20 left-[10%] glass p-4 rounded-xl rotate-[-5deg]">
+      <p class="text-xs text-slate-400 mb-1">라이브: User_882</p>
+      <p class="text-lg font-bold">04:12:44</p>
+    </div>
+    <div class="absolute top-60 right-[15%] glass p-4 rounded-xl rotate-[12deg]">
+      <p class="text-xs text-slate-400 mb-1">라이브: ShadowWalker</p>
+      <p class="text-lg font-bold">12:05:19</p>
+    </div>
+    <div class="absolute bottom-40 left-[20%] glass p-4 rounded-xl rotate-[8deg]">
+      <p class="text-xs text-slate-400 mb-1">라이브: PersistenceKing</p>
+      <p class="text-lg font-bold">01:55:02</p>
+    </div>
+    <div class="absolute top-1/2 right-[5%] glass p-4 rounded-xl rotate-[-15deg]">
+      <p class="text-xs text-slate-400 mb-1">라이브: StayStrong_x</p>
+      <p class="text-lg font-bold">08:22:11</p>
+    </div>
+  </div>
+
+
+  <!-- =============================================
+       메인 레이아웃 컨테이너
+       ============================================= -->
+  <div class="relative z-10 flex flex-col min-h-screen max-w-6xl mx-auto px-4 md:px-8">
+
+    <!-- =============================================
+         헤더: 로고, 네비게이션, 로그인 버튼
+         ============================================= -->
+    <header class="flex items-center justify-between py-6 border-b border-glass-border">
+
+      <!-- 로고 + 글로벌 타이머 -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2">
+          <div class="bg-primary p-1.5 rounded-lg">
+            <span class="material-symbols-outlined text-white text-2xl">timer</span>
+          </div>
+          <h1 class="text-xl font-bold tracking-tight">
+            KILL<span class="text-primary">COUNT</span>
+          </h1>
+        </div>
+
+        <!-- 글로벌 평균 생존 시간 (실시간 리더보드 평균) -->
+        <div class="hidden md:flex flex-col ml-4">
+          <span id="header-timer" class="text-lg font-bold text-white">00:00:00</span>
+          <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">나의 생존 시간</span>
+        </div>
+      </div>
+
+      <!-- 우측: 네비게이션 + 로그인 -->
+      <div class="flex items-center gap-4 md:gap-6">
+
+        <!-- 네비게이션 (데스크탑) -->
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+          <a href="#rules" class="hover:text-primary transition-colors flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm align-middle">info</span>
+            규칙
+          </a>
+          <a href="#rewards" class="hover:text-primary transition-colors">후원하기</a>
+          <a href="#rewards" class="hover:text-primary transition-colors">기부 현황</a>
+          <!-- 언어 전환 -->
+          <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg glass cursor-pointer hover:border-primary/50 transition-colors text-slate-300">
+            <span class="material-symbols-outlined text-sm">language</span>
+            <span class="text-[10px] font-bold uppercase">KR / EN</span>
+          </div>
+        </nav>
+
+        <!-- 로그인 버튼 (비로그인 상태에서 표시) -->
+        <button
+          id="login-btn"
+          onclick="signGoogle()"
+          class="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
+        >
+          <span class="material-symbols-outlined text-lg">login</span>
+          구글 로그인
+        </button>
+
+        <!-- 유저 프로필 (로그인 후 표시) -->
+        <div id="user-profile" class="hidden flex items-center gap-3">
+          <span id="user-name" class="text-sm font-medium text-slate-300 hidden md:block"></span>
+          <div class="size-10 rounded-full border border-glass-border p-0.5 cursor-pointer" onclick="signOut()">
+            <img
+              id="user-avatar"
+              alt="프로필"
+              class="w-full h-full rounded-full object-cover"
+              src="assets/img/guest-avatar.png"
+            />
+          </div>
+        </div>
+
+        <!-- 관리자 대시보드 버튼 (관리자 전용) -->
+        <!-- ⚠️ 보안: 이 버튼은 UI 편의용. 실제 API는 백엔드에서 권한 재검증 -->
+        <button
+          id="admin-dashboard-btn"
+          class="hidden bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 px-3 py-1.5 rounded-lg text-xs font-bold"
+          onclick="showAdminPanel()"
+        >
+          ⚙️ 관리자
+        </button>
+      </div>
+    </header>
+
+
+    <!-- =============================================
+         메인 콘텐츠
+         ============================================= -->
+    <main class="flex-1 py-12">
+
+      <!-- =============================================
+           히어로 섹션: 나의 생존 타이머
+           ============================================= -->
+      <section class="flex flex-col items-center text-center mb-20">
+
+        <!-- 라이브 배지 -->
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full glass mb-6">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          <span class="text-xs font-bold uppercase tracking-widest text-slate-300">라이브 세션 진행 중</span>
+        </div>
+
+        <h2 class="text-slate-400 text-lg md:text-xl font-medium mb-4">나의 현재 생존 시간</h2>
+
+        <!-- 타이머 디스플레이 (시:분:초) -->
+        <div class="flex gap-4 md:gap-8 justify-center items-end mb-10">
+
+          <!-- 시간 -->
+          <div class="flex flex-col gap-2">
+            <div class="glass w-24 h-32 md:w-32 md:h-44 rounded-2xl flex items-center justify-center">
+              <!-- id="timer-hours": timer.js의 realTimer()가 이 텍스트만 업데이트 -->
+              <span id="timer-hours" class="text-5xl md:text-7xl font-bold timer-glow">00</span>
+            </div>
+            <span class="text-xs font-bold text-slate-500 uppercase">시간</span>
+          </div>
+
+          <!-- 구분자 -->
+          <div class="pb-8 md:pb-14">
+            <span class="text-4xl md:text-6xl font-bold text-primary">:</span>
+          </div>
+
+          <!-- 분 -->
+          <div class="flex flex-col gap-2">
+            <div class="glass w-24 h-32 md:w-32 md:h-44 rounded-2xl flex items-center justify-center">
+              <span id="timer-minutes" class="text-5xl md:text-7xl font-bold timer-glow">00</span>
+            </div>
+            <span class="text-xs font-bold text-slate-500 uppercase">분</span>
+          </div>
+
+          <!-- 구분자 -->
+          <div class="pb-8 md:pb-14">
+            <span class="text-4xl md:text-6xl font-bold text-primary">:</span>
+          </div>
+
+          <!-- 초 (primary 색상으로 강조) -->
+          <div class="flex flex-col gap-2">
+            <div class="glass border-primary/30 w-24 h-32 md:w-32 md:h-44 rounded-2xl flex items-center justify-center">
+              <span id="timer-seconds" class="text-5xl md:text-7xl font-bold text-primary timer-glow">00</span>
+            </div>
+            <span class="text-xs font-bold text-slate-500 uppercase">초</span>
+          </div>
+        </div>
+
+        <!-- 통계 카드 그리드 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+
+          <!-- 라이브 경쟁자 수 -->
+          <div class="glass p-6 rounded-2xl flex flex-col items-center gap-1">
+            <span class="text-slate-400 text-sm font-medium">라이브 경쟁자</span>
+            <span id="live-count" class="text-2xl font-bold text-white">--</span>
+            <div class="w-full h-1 bg-slate-800 rounded-full mt-3 overflow-hidden">
+              <div id="live-count-bar" class="w-3/4 h-full bg-primary transition-all"></div>
+            </div>
+          </div>
+
+          <!-- 현재 순위 -->
+          <div class="glass p-6 rounded-2xl flex flex-col items-center gap-1 border-primary/20 bg-primary/5">
+            <span class="text-slate-400 text-sm font-medium">현재 순위</span>
+            <span id="current-rank" class="text-3xl font-bold text-primary">--</span>
+            <span id="rank-percentage" class="text-[10px] text-primary uppercase font-bold mt-1 tracking-wider"></span>
+          </div>
+
+          <!-- 세션 평균 -->
+          <div class="glass p-6 rounded-2xl flex flex-col items-center gap-1">
+            <span class="text-slate-400 text-sm font-medium">세션 평균</span>
+            <span id="session-average" class="text-2xl font-bold text-white">--:--:--</span>
+          </div>
+        </div>
+
+        <!-- 채팅 경고 메시지 (인라인) -->
+        <div id="chat-alert" class="hidden mt-4 px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-400 text-sm rounded-lg">
+          오류 메시지
+        </div>
+      </section>
+
+
+      <!-- =============================================
+           실시간 채팅 섹션
+           ============================================= -->
+      <section class="max-w-4xl mx-auto mb-16">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="material-symbols-outlined text-primary">forum</span>
+          <h3 class="text-2xl font-bold">실시간 채팅</h3>
+
+          <!-- 온라인 유저 수 배지 -->
+          <div class="px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 flex items-center gap-1.5">
+            <span class="size-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            <span id="online-badge" class="text-[10px] font-bold text-green-500 uppercase tracking-widest">연결 중...</span>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden flex flex-col h-[400px]">
+
+          <!-- 채팅 메시지 영역 -->
+          <!-- id="chat-messages": chat.js의 renderChat()이 여기에 메시지 추가 -->
+          <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
+
+            <!-- 연결 상태 메시지 -->
+            <div id="chat-status" class="text-center text-xs text-slate-500 py-2">
+              연결 중...
+            </div>
+
+            <!-- 초기 안내 메시지 (로드 후 사라짐) -->
+            <div id="chat-welcome" class="flex flex-col gap-1">
+              <p class="text-sm text-slate-400 text-center">채팅 기록을 불러오는 중입니다...</p>
+            </div>
+          </div>
+
+          <!-- 입력 영역 -->
+          <div class="p-4 bg-navy-accent/50 border-t border-glass-border">
+            <div class="flex gap-3">
+              <!-- id="chat-input": initChat()에서 이벤트 바인딩 -->
+              <input
+                id="chat-input"
+                type="text"
+                disabled
+                placeholder="채팅하려면 로그인하세요"
+                maxlength="200"
+                class="flex-1 bg-white/5 border border-glass-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <!-- id="chat-send-btn": initChat()에서 클릭 이벤트 바인딩 -->
+              <button
+                id="chat-send-btn"
+                disabled
+                onclick="sendChat()"
+                class="bg-primary hover:bg-primary/90 text-white p-2 rounded-lg transition-all flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span class="material-symbols-outlined">send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- =============================================
+           글로벌 리더보드 섹션
+           ============================================= -->
+      <section id="leaderboard" class="max-w-4xl mx-auto mb-16">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <h3 class="text-2xl font-bold">글로벌 리더보드</h3>
+            <p class="text-slate-400 text-sm">오늘의 실시간 생존 순위</p>
+          </div>
+
+          <!-- 탭: 실시간 / 역대 -->
+          <div class="flex bg-navy-accent p-1 rounded-lg">
+            <button
+              id="tab-live"
+              onclick="switchLeaderboardTab('live')"
+              class="bg-primary text-white px-4 py-1.5 rounded-md text-xs font-bold"
+            >
+              실시간
+            </button>
+            <button
+              id="tab-alltime"
+              onclick="switchLeaderboardTab('alltime')"
+              class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              역대
+            </button>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden mb-4">
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="border-b border-glass-border text-slate-400 text-xs font-bold uppercase tracking-wider text-left">
+                  <th class="px-6 py-4">순위</th>
+                  <th class="px-6 py-4">경쟁자</th>
+                  <th class="px-6 py-4 text-center">상태</th>
+                  <th class="px-6 py-4 text-right">생존 시간</th>
+                </tr>
+              </thead>
+              <!-- id="leaderboard-body": JS가 동적으로 행을 채움 -->
+              <tbody id="leaderboard-body" class="divide-y divide-glass-border">
+                <tr>
+                  <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
+                    리더보드를 불러오는 중...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bg-navy-accent/50 p-4 border-t border-glass-border flex justify-center">
+            <button
+              onclick="loadLeaderboard()"
+              class="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              상위 100명 전체 보기
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- =============================================
+           규칙 섹션
+           ============================================= -->
+      <section id="rules" class="max-w-4xl mx-auto mb-16">
+        <div class="glass rounded-2xl p-8">
+          <div class="flex items-center gap-3 mb-6">
+            <span class="material-symbols-outlined text-primary text-2xl">info</span>
+            <h3 class="text-2xl font-bold">게임 규칙</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-400 text-sm">
+            <div class="flex gap-3">
+              <span class="text-primary font-bold text-lg">01</span>
+              <div>
+                <p class="font-bold text-white mb-1">페이지 체류 = 생존</p>
+                <p>이 페이지에 머무는 동안 타이머가 올라갑니다. 창을 닫으면 기록이 멈춥니다.</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <span class="text-primary font-bold text-lg">02</span>
+              <div>
+                <p class="font-bold text-white mb-1">하루 단위 경쟁</p>
+                <p>매일 자정(UTC+0)에 초기화됩니다. 전날 기록은 명예의 전당에 보존됩니다.</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <span class="text-primary font-bold text-lg">03</span>
+              <div>
+                <p class="font-bold text-white mb-1">탭 하나만 허용</p>
+                <p>여러 탭에서 동시 접속하면 마지막 탭만 기록됩니다. 공정한 경쟁을 위해!</p>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <span class="text-primary font-bold text-lg">04</span>
+              <div>
+                <p class="font-bold text-white mb-1">기부</p>
+                <p>광고 수익이나 후원금의 50%는 기부됩니다. 참여만으로 세상을 밝혀주세요.</p>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- =============================================
+           관리자 패널 (관리자 전용 - 숨김 상태)
+           ⚠️ 보안: UI 표시는 role 체크, 실제 API는 백엔드에서 이중 검증
+           ============================================= -->
+      <div id="admin-panel" class="hidden max-w-4xl mx-auto mb-16">
+        <div class="glass rounded-2xl p-8 border border-yellow-500/30">
+          <div class="flex items-center gap-3 mb-6">
+            <span class="text-2xl">⚙️</span>
+            <h3 class="text-2xl font-bold text-yellow-400">관리자 패널</h3>
+            <span class="text-xs text-yellow-500/70">백엔드에서도 이중 검증됨</span>
+          </div>
+          <div class="flex flex-wrap gap-4">
+            <button
+              onclick="getAdminPower('midnight-reset')"
+              class="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-yellow-500/30 transition-colors"
+            >
+              자정 리셋 실행
+            </button>
+            <button
+              onclick="showForceStopUI()"
+              class="bg-red-500/20 border border-red-500/40 text-red-400 px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-500/30 transition-colors"
+            >
+              유저 타이머 강제 종료
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+
+    <!-- =============================================
+         푸터
+         ============================================= -->
+    <footer class="py-10 border-t border-glass-border text-center">
+        <!-- 소셜 링크 -->
+        <div class="flex items-center gap-4">
+          <!-- 인스타그램 -->
+          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+            <svg class="size-4 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.981 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
+            </svg>
+          </div>
+          <!-- X (트위터) -->
+          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+            <svg class="size-4 fill-current" viewBox="0 0 24 24">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+            </svg>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-600 font-bold uppercase tracking-widest">
+          © 2024 Killcount. All Rights Reserved.
+        </p>
+      </div>
+    </footer>
+
+  </div><!-- end .layout-container -->
+
+
+  <!-- =============================================
+       JavaScript 로드 (순서 중요!)
+       1. auth.js: 로그인 처리 (가장 먼저 - 다른 모듈의 선행 조건)
+       2. timer.js: 타이머 (auth 성공 후 startTimerService 호출)
+       3. chat.js: 채팅 (auth 성공 후 initChat 호출)
+       마지막: 인라인 스크립트 (리더보드 등 페이지별 추가 로직)
+       ============================================= -->
+  <script src="js/auth.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/chat.js"></script>
+
+  <script>
+    // =============================================
+    // 페이지 레벨 추가 로직
+    // =============================================
+
+    // --- 리더보드 로드 ---
+    // ⚠️ 필수 수정: API_BASE를 실제 Workers URL로 교체
+    const API_BASE_PAGE = "https://killcount-backend.여기에_서브도메인.workers.dev";
+
+    async function loadLeaderboard(mode = "live") {
+      const tbody = document.getElementById("leaderboard-body");
+      if (!tbody) return;
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
+            순위를 불러오는 중...
+          </td>
+        </tr>
+      `;
+
+      try {
+        const res = await fetch(`${API_BASE_PAGE}/api/leaderboard`);
+        const data = await res.json();
+        const list = data.leaderboard || [];
+
+        if (list.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
+                아직 기록이 없습니다. 첫 번째 생존자가 되어보세요!
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // 현재 로그인 유저 ID (본인 행 강조)
+        const myInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+
+        tbody.innerHTML = list.map((entry, i) => {
+          const rank = i + 1;
+          const isMe = entry.user_id === myInfo.id;
+          const totalMs = entry.today_accumulated_ms;
+          const h = String(Math.floor(totalMs / 3600000)).padStart(2, "0");
+          const m = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, "0");
+          const s = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, "0");
+
+          // 1위 특별 스타일
+          const isFirst = rank === 1;
+          const rowClass = isMe
+            ? "bg-primary/10 hover:bg-primary/20"
+            : isFirst
+              ? "bg-primary/5 hover:bg-primary/10"
+              : "hover:bg-white/5";
+
+          return `
+            <tr class="${rowClass} transition-colors group">
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl font-bold ${isFirst ? "text-primary" : "text-slate-400"} italic">
+                    ${String(rank).padStart(2, "0")}
+                  </span>
+                  ${isFirst ? '<span class="material-symbols-outlined text-yellow-500 text-lg">workspace_premium</span>' : ""}
+                  ${isMe ? '<span class="text-xs text-primary font-bold">나</span>' : ""}
+                </div>
+              </td>
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <div class="size-9 rounded-full border ${isFirst ? "border-primary" : "border-glass-border"} overflow-hidden">
+                    <img
+                      src="${entry.picture || "assets/img/guest-avatar.png"}"
+                      alt="${entry.nickname}"
+                      class="w-full h-full object-cover"
+                      onerror="this.src='assets/img/guest-avatar.png'"
+                    />
+                  </div>
+                  <span class="font-bold text-white group-hover:text-primary transition-colors">
+                    ${entry.nickname}
+                  </span>
+                </div>
+              </td>
+              <td class="px-6 py-4">
+                <div class="flex justify-center">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-500 border border-green-500/30 uppercase tracking-tighter">
+                    접속 중
+                  </span>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <span class="text-lg font-mono font-bold text-white tracking-tight">${h}:${m}:${s}</span>
+              </td>
+            </tr>
+          `;
+        }).join("");
+
+        // 현재 내 순위 업데이트
+        const myEntry = list.find(e => e.user_id === myInfo.id);
+        if (myEntry) {
+          const myRank = list.indexOf(myEntry) + 1;
+          const rankEl = document.getElementById("current-rank");
+          const pctEl = document.getElementById("rank-percentage");
+          if (rankEl) rankEl.textContent = `#${myRank}`;
+          if (pctEl) pctEl.textContent = `상위 ${Math.ceil(myRank / list.length * 100)}%`;
+        }
+
+        // 라이브 인원 업데이트
+        const countEl = document.getElementById("live-count");
+        if (countEl) countEl.textContent = list.length.toLocaleString();
+
+      } catch (err) {
+        console.error("[리더보드] 로드 실패:", err);
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
+              리더보드를 불러올 수 없습니다. 서버 연결을 확인해주세요.
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // --- 리더보드 탭 전환 ---
+    function switchLeaderboardTab(mode) {
+      const liveBtn = document.getElementById("tab-live");
+      const alltimeBtn = document.getElementById("tab-alltime");
+
+      if (mode === "live") {
+        liveBtn.className = "bg-primary text-white px-4 py-1.5 rounded-md text-xs font-bold";
+        alltimeBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors";
+      } else {
+        alltimeBtn.className = "bg-primary text-white px-4 py-1.5 rounded-md text-xs font-bold";
+        liveBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors";
+      }
+      loadLeaderboard(mode);
+    }
+
+    // --- 관리자 강제 종료 UI ---
+    function showForceStopUI() {
+      const targetId = prompt("강제 종료할 유저 ID를 입력하세요:");
+      if (targetId) {
+        getAdminPower("force-stop", { targetUserId: targetId });
+      }
+    }
+
+    function showAdminPanel() {
+      const panel = document.getElementById("admin-panel");
+      if (panel) panel.classList.toggle("hidden");
+    }
+
+    // --- 페이지 로드 시 리더보드 초기화 ---
+    document.addEventListener("DOMContentLoaded", () => {
+      // 초기 리더보드 로드
+      loadLeaderboard();
+
+      // 30초마다 리더보드 자동 갱신
+      setInterval(loadLeaderboard, 30000);
+    });
+
+    // --- auth-success 이벤트: 로그인 후 리더보드 즉시 갱신 ---
+    document.addEventListener("auth-success", () => {
+      loadLeaderboard();
+    });
+  </script>
+</body>
+</html>

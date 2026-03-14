@@ -1,0 +1,20 @@
+{
+  "name": "killcount",
+  "version": "0.1.0",
+  "description": "실시간 생존 시간 경쟁 게임 플랫폼",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && wrangler dev",
+    "deploy:backend": "cd backend && wrangler deploy",
+    "db:init": "cd backend && wrangler d1 execute stayalive_db --local --file=schema.sql",
+    "db:init:remote": "cd backend && wrangler d1 execute stayalive_db --file=schema.sql",
+    "db:create": "cd backend && wrangler d1 create stayalive_db"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
+  },
+  "workspaces": [
+    "backend"
+  ]
+}

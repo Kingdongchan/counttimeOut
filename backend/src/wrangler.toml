@@ -1,0 +1,54 @@
+# =============================================
+# wrangler.toml - Cloudflare Workers 배포 설정
+# ⚠️ 중요: account_id와 database_id는 반드시 본인 Cloudflare 계정 값으로 교체!
+# Cloudflare 대시보드 → Workers → 내 계정 정보에서 확인
+# =============================================
+
+name = "killcount-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# ⚠️ 필수 수정: Cloudflare 대시보드 우측 상단의 Account ID로 교체
+account_id = "여기에_ACCOUNT_ID_입력"
+
+# --- Cloudflare D1 데이터베이스 연결 ---
+[[d1_databases]]
+binding = "DB"                          # Workers 코드에서 env.DB로 접근
+database_name = "stayalive_db"          # D1 생성 시 사용한 이름
+# ⚠️ 필수 수정: wrangler d1 create stayalive_db 실행 후 나오는 ID로 교체
+database_id = "여기에_D1_DATABASE_ID_입력"
+
+# --- Cloudflare R2 스토리지 연결 (아바타 이미지 등) ---
+[[r2_buckets]]
+binding = "R2"                          # Workers 코드에서 env.R2로 접근
+bucket_name = "killcount-storage"
+# ⚠️ 필수 수정: wrangler r2 bucket create killcount-storage 실행 후 생성
+
+# --- Durable Objects 연결 (실시간 채팅 & 타이머 동기화) ---
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+
+[[durable_objects.bindings]]
+name = "TIMER_SYNC"
+class_name = "TimerSync"
+
+# Durable Objects 마이그레이션 (처음 배포 시 반드시 실행)
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatRoom", "TimerSync"]
+
+# --- 환경변수 (민감 정보는 .dev.vars에 따로 관리) ---
+[vars]
+ADMIN_EMAIL = "samesamechan0412@gmail.com"   # 관리자 이메일 (공개 설정 가능)
+APP_ENV = "development"                       # 배포 시 "production"으로 변경
+
+# ⚠️ 보안 필수: 아래 민감 정보는 절대 이 파일에 직접 쓰지 말 것!
+# 터미널에서 다음 명령어로 등록:
+# wrangler secret put GOOGLE_CLIENT_SECRET
+# wrangler secret put SESSION_SECRET
+
+# --- 로컬 개발 환경 설정 ---
+[dev]
+port = 8787
+local_protocol = "http"
