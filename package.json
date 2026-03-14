@@ -1,5 +1,5 @@
 {
-  "name": "killcount",
+  "name": "counttimeout",
   "version": "0.1.0",
   "description": "실시간 생존 시간 경쟁 게임 플랫폼",
   "private": true,

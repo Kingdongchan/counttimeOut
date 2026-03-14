@@ -1,421 +1,478 @@
 // =============================================
 // frontend/js/auth.js
-// 역할: Google OAuth 2.0 로그인, 세션 관리, 관리자 권한 처리
+// 역할: Google OAuth 2.0 로그인, 세션 관리, 닉네임 설정/변경, 관리자 권한
 //
-// ⚠️ .gitignore 필수 확인 (맥북 사용자 전용):
-//   .DS_Store, .env, .dev.vars는 반드시 .gitignore에 포함할 것!
-//   민감 정보가 GitHub에 올라가면 즉시 키를 재발급 받아야 함.
+// 닉네임 흐름:
+//   1. 구글 로그인 성공
+//   2. 서버에서 user.nickname === null 이면 → 최초 설정 모달 표시
+//   3. 닉네임 입력 후 저장 → 게임 시작
+//   4. 이후 방문: localStorage 세션으로 자동 로그인 → 게임 바로 시작
+//   5. 프로필 아바타 클릭 → 프로필 모달 (닉네임 변경 + 24시간 쿨다운 표시)
+//
+// ⚠️ .gitignore 필수: .DS_Store, .env, .dev.vars 는 절대 커밋 금지!
 // =============================================
 
-// =============================================
-// 설정 상수
-// ⚠️ 필수 수정: 아래 두 값은 반드시 본인 것으로 교체!
-// 구글 콘솔 → APIs & Services → Credentials → OAuth 2.0 Client IDs
-// =============================================
-
-// ⚠️ 중요 필수 수정: Google Cloud Console에서 발급받은 클라이언트 ID 입력
-// https://console.cloud.google.com → 사용자 인증 정보 → OAuth 클라이언트 ID
+// ⚠️ 필수 수정 1: Google Cloud Console → 사용자 인증 정보 → OAuth 2.0 클라이언트 ID
 const GOOGLE_CLIENT_ID = "여기에_복사한_CLIENT_ID.apps.googleusercontent.com";
 
-// ⚠️ 보안 절대 금지: Client Secret은 절대 프론트엔드에 넣지 말 것!
-// Client Secret은 backend/wrangler.toml의 환경변수로만 관리:
-// 터미널: wrangler secret put GOOGLE_CLIENT_SECRET
+// ⚠️ 필수 수정 2: wrangler deploy 후 실제 Workers URL로 교체
+const API_BASE = "https://counttimeout-backend.여기에_서브도메인.workers.dev";
 
-// ⚠️ 필수 수정: wrangler deploy 후 실제 Workers URL로 교체
-const API_BASE = "https://killcount-backend.여기에_서브도메인.workers.dev";
-
-// 관리자 이메일 (프론트엔드 UI 표시용 - 실제 권한은 백엔드에서 이중 검증)
-// ⚠️ 보안: 이 값을 바꿔도 실제 관리자 권한은 백엔드 DB에서 결정됨
-const ADMIN_EMAIL = "samesamechan0412@gmail.com";
-
+// 닉네임 중복 확인 debounce 타이머
+let nicknameCheckTimer = null;
 
 // =============================================
 // initAuth()
-// 목적: 페이지 로드 시 기존 로그인 상태 확인 → 자동 로그인 처리
-// 흐름: LocalStorage 토큰 확인 → 서버 검증 → UI 업데이트
+// 목적: 페이지 로드 시 기존 로그인 상태 확인 → 닉네임 분기
 // =============================================
 async function initAuth() {
-  console.log("[인증] 로그인 상태 확인 중...");
-
-  // Google Identity Services SDK 로드
   await loadGoogleSDK();
-
   const sessionToken = localStorage.getItem("sessionToken");
 
   if (!sessionToken) {
-    // 토큰 없음 → 로그인 버튼 표시
     showLoginUI();
     return;
   }
 
   try {
-    // 서버에서 세션 유효성 검증
     const res = await fetch(`${API_BASE}/api/auth/check`, {
       headers: { "Authorization": `Bearer ${sessionToken}` },
     });
-
     const data = await res.json();
 
     if (data.valid && data.user) {
-      // 인증 성공 → 유저 UI 표시 및 타이머 시작
       const user = data.user;
-
-      // 세션에 role 포함 저장 (UI 표시용만 - 실제 권한은 백엔드가 결정)
       localStorage.setItem("userInfo", JSON.stringify(user));
 
+      // nickname === null 이면 최초 방문자 → 닉네임 설정 모달
+      if (!user.nickname) {
+        const loginBtn = document.getElementById("login-btn");
+        if (loginBtn) loginBtn.classList.add("hidden");
+        showNicknameSetModal(user);
+        return;
+      }
+
+      // 닉네임 있음 → 바로 게임 시작
       updateUserUI(user);
-
-      // 관리자 권한 확인
       isAdminCheck(user);
-
-      // timer.js 시작 (타이머 서비스 초기화)
-      if (typeof startTimerService === "function") {
-        await startTimerService();
-      }
-
-      // chat.js 초기화
-      if (typeof initChat === "function") {
-        await initChat();
-      }
-
-      // 로그인 성공 이벤트 발행 (다른 모듈에서 감지 가능)
-      document.dispatchEvent(new CustomEvent("auth-success", { detail: user }));
-
-      console.log(`[인증] 자동 로그인 성공: ${user.name}`);
-
+      await launchGame();
     } else {
-      // 세션 만료 → 토큰 삭제 후 로그인 화면
-      localStorage.removeItem("sessionToken");
-      localStorage.removeItem("userInfo");
+      clearSession();
       showLoginUI();
     }
-
   } catch (err) {
     console.error("[인증] 서버 연결 실패:", err);
-    showLoginUI(); // 오프라인이어도 로그인 버튼은 표시
+    showLoginUI();
   }
 }
 
-
 // =============================================
-// signGoogle() / signInWithGoogle()
-// 목적: 구글 OAuth 팝업 실행 → 서버 등록 → 세션 시작
+// signGoogle()
 // =============================================
 async function signGoogle() {
-  console.log("[인증] 구글 로그인 시작...");
-
   if (typeof google === "undefined") {
-    alert("구글 로그인 라이브러리 로드 중입니다. 잠시 후 다시 시도해주세요.");
+    alert("구글 로그인 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
     return;
   }
-
-  // Google One Tap 또는 팝업 로그인 실행
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleCallback,
     auto_select: false,
     cancel_on_tap_outside: true,
   });
-
-  // 팝업 방식으로 로그인 창 표시
-  google.accounts.id.prompt((notification) => {
-    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-      // One Tap이 안 되면 버튼 렌더링으로 대체
-      console.log("[인증] One Tap 불가, 버튼 방식으로 전환");
-    }
-  });
+  google.accounts.id.prompt();
 }
-
-// 별칭: 함수명 통일을 위해 두 이름 모두 사용 가능하게
 const signInWithGoogle = signGoogle;
-
 
 // =============================================
 // handleGoogleCallback(response)
-// 목적: 구글이 보내준 ID 토큰을 백엔드로 전달 → 세션 발급
-// ⚠️ 보안: ID 토큰 검증은 반드시 백엔드에서 수행 (프론트에서 디코딩만으론 불충분)
+// 목적: 구글 토큰 → 백엔드 검증 → 닉네임 분기
+// ⚠️ 보안: 토큰 검증은 반드시 백엔드에서 수행
 // =============================================
 async function handleGoogleCallback(response) {
   const idToken = response.credential;
-
   try {
-    // 백엔드로 Google ID 토큰 전송 → 검증 + 세션 발급
     const res = await fetch(`${API_BASE}/api/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
     });
-
     if (!res.ok) throw new Error("서버 인증 실패");
 
     const data = await res.json();
     const { sessionId, user } = data;
 
-    // 세션 토큰 저장
     localStorage.setItem("sessionToken", sessionId);
     localStorage.setItem("userInfo", JSON.stringify(user));
 
-    // UI 업데이트
-    updateUserUI(user);
-
-    // 관리자 권한 확인
-    isAdminCheck(user);
-
-    // 타이머 시작
-    if (typeof startTimerService === "function") {
-      await startTimerService();
+    // ★ 핵심: nickname === null 이면 최초 방문자 → 설정 모달
+    if (!user.nickname) {
+      const loginBtn = document.getElementById("login-btn");
+      if (loginBtn) loginBtn.classList.add("hidden");
+      showNicknameSetModal(user);
+    } else {
+      // 기존 유저 → 바로 게임 시작
+      updateUserUI(user);
+      isAdminCheck(user);
+      await launchGame();
     }
-
-    // 채팅 초기화
-    if (typeof initChat === "function") {
-      await initChat();
-    }
-
-    // 로그인 성공 이벤트 발행
-    document.dispatchEvent(new CustomEvent("auth-success", { detail: user }));
-
-    console.log(`[인증] 로그인 성공: ${user.name} (${user.role})`);
-
   } catch (err) {
     console.error("[인증] 로그인 처리 실패:", err);
     alert("로그인에 실패했습니다. 다시 시도해주세요.");
   }
 }
 
+// =============================================
+// showNicknameSetModal(user)
+// 목적: 처음 방문자에게 닉네임 설정 모달 표시
+// 특징: X 버튼 없음 (닉네임 입력 전까지 게임 불가)
+// =============================================
+function showNicknameSetModal(user) {
+  const modal = document.getElementById("nickname-set-modal");
+  if (!modal) return;
+
+  // 구글 이름 힌트 표시
+  const hintEl = document.getElementById("nickname-set-hint");
+  if (hintEl) hintEl.textContent = user.name || "";
+
+  const input = document.getElementById("nickname-set-input");
+  if (input) { input.value = ""; setTimeout(() => input.focus(), 100); }
+
+  setNicknameStatus("set", "", "");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
 
 // =============================================
-// signOut() / sighOut()
-// 목적: 세션 안전 종료 + 브라우저 흔적 삭제
+// submitNicknameSet()
+// 목적: 최초 닉네임 설정 제출
 // =============================================
-async function signOut() {
-  console.log("[인증] 로그아웃 처리 중...");
-
+async function submitNicknameSet() {
+  const input = document.getElementById("nickname-set-input");
+  const nickname = input?.value?.trim() || "";
   const sessionToken = localStorage.getItem("sessionToken");
 
-  // 1단계: 타이머 최종 기록 저장
-  if (typeof stopTimer === "function") {
-    await stopTimer();
+  if (!nickname) {
+    setNicknameStatus("set", "error", "별명을 입력해주세요.");
+    return;
   }
 
-  // 2단계: 서버에서 세션 삭제
+  setModalLoading("set", true);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/nickname/set`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify({ nickname }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setNicknameStatus("set", "error", data.error || "오류가 발생했습니다.");
+      setModalLoading("set", false);
+      return;
+    }
+
+    // 성공: localStorage 업데이트
+    const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+    userInfo.nickname = data.nickname;
+    userInfo.nickname_changed_at = Date.now();
+    localStorage.setItem("userInfo", JSON.stringify(userInfo));
+
+    closeModal("nickname-set-modal");
+    updateUserUI(userInfo);
+    isAdminCheck(userInfo);
+    await launchGame();
+
+  } catch (err) {
+    console.error("[닉네임] 설정 실패:", err);
+    setNicknameStatus("set", "error", "서버 오류가 발생했습니다. 다시 시도해주세요.");
+    setModalLoading("set", false);
+  }
+}
+
+// =============================================
+// showProfileModal()
+// 목적: 프로필 아바타 클릭 시 프로필 모달 표시
+// 포함: 현재 닉네임 + 변경 폼 + 쿨다운 상태 + 로그아웃
+// =============================================
+function showProfileModal() {
+  const modal = document.getElementById("profile-modal");
+  if (!modal) return;
+
+  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+
+  // 현재 닉네임/프로필 표시
+  const currentNicknameEl = document.getElementById("profile-current-nickname");
+  if (currentNicknameEl) currentNicknameEl.textContent = userInfo.nickname || "-";
+
+  const profileImg = document.getElementById("profile-modal-img");
+  if (profileImg) profileImg.src = userInfo.picture || "assets/img/guest-avatar.png";
+
+  const googleNameEl = document.getElementById("profile-google-name");
+  if (googleNameEl) googleNameEl.textContent = userInfo.name || "";
+
+  // 쿨다운 계산
+  const changedAt = userInfo.nickname_changed_at;
+  const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const changeInput = document.getElementById("nickname-change-input");
+  const changeBtn = document.getElementById("nickname-change-btn");
+  const cooldownEl = document.getElementById("nickname-cooldown-msg");
+
+  if (changedAt && (now - changedAt) < COOLDOWN_MS) {
+    // 쿨다운 중
+    const remainingMs = COOLDOWN_MS - (now - changedAt);
+    const rH = Math.floor(remainingMs / (60 * 60 * 1000));
+    const rM = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+    if (changeInput) changeInput.disabled = true;
+    if (changeBtn) changeBtn.disabled = true;
+    if (cooldownEl) {
+      cooldownEl.textContent = `${rH}시간 ${rM}분 후에 변경 가능합니다.`;
+      cooldownEl.classList.remove("hidden");
+    }
+  } else {
+    // 변경 가능
+    if (changeInput) { changeInput.disabled = false; changeInput.value = ""; }
+    if (changeBtn) changeBtn.disabled = false;
+    if (cooldownEl) cooldownEl.classList.add("hidden");
+  }
+
+  setNicknameStatus("change", "", "");
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+// =============================================
+// submitNicknameChange()
+// 목적: 닉네임 변경 제출 (24시간 쿨다운 서버에서도 검증)
+// =============================================
+async function submitNicknameChange() {
+  const input = document.getElementById("nickname-change-input");
+  const nickname = input?.value?.trim() || "";
+  const sessionToken = localStorage.getItem("sessionToken");
+
+  if (!nickname) {
+    setNicknameStatus("change", "error", "새 별명을 입력해주세요.");
+    return;
+  }
+
+  setModalLoading("change", true);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/nickname/change`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify({ nickname }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.code === "COOLDOWN") {
+        setNicknameStatus("change", "error",
+          `${data.remainingHours}시간 ${data.remainingMins}분 후에 변경 가능합니다.`
+        );
+      } else {
+        setNicknameStatus("change", "error", data.error || "오류가 발생했습니다.");
+      }
+      setModalLoading("change", false);
+      return;
+    }
+
+    // 성공
+    const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
+    userInfo.nickname = data.nickname;
+    userInfo.nickname_changed_at = Date.now();
+    localStorage.setItem("userInfo", JSON.stringify(userInfo));
+
+    const nameEl = document.getElementById("user-name");
+    if (nameEl) nameEl.textContent = data.nickname;
+
+    setNicknameStatus("change", "success", `"${data.nickname}"으로 변경되었습니다. ✓`);
+    setModalLoading("change", false);
+
+    setTimeout(() => closeModal("profile-modal"), 2000);
+
+  } catch (err) {
+    console.error("[닉네임] 변경 실패:", err);
+    setNicknameStatus("change", "error", "서버 오류가 발생했습니다.");
+    setModalLoading("change", false);
+  }
+}
+
+// =============================================
+// checkNicknameDuplicate(type)
+// 목적: 입력 중 실시간 중복 확인 (500ms debounce)
+// =============================================
+function checkNicknameDuplicate(type) {
+  const inputId = type === "set" ? "nickname-set-input" : "nickname-change-input";
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const nickname = input.value.trim();
+  if (nickname.length < 2) { setNicknameStatus(type, "", ""); return; }
+
+  clearTimeout(nicknameCheckTimer);
+  setNicknameStatus(type, "loading", "확인 중...");
+
+  nicknameCheckTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/nickname/check?nickname=${encodeURIComponent(nickname)}`
+      );
+      const data = await res.json();
+      if (data.available) {
+        setNicknameStatus(type, "success", "사용 가능한 별명입니다. ✓");
+      } else {
+        setNicknameStatus(type, "error", data.message || "이미 사용 중인 별명입니다.");
+      }
+    } catch { setNicknameStatus(type, "", ""); }
+  }, 500);
+}
+
+// =============================================
+// signOut()
+// =============================================
+async function signOut() {
+  const sessionToken = localStorage.getItem("sessionToken");
+  if (typeof stopTimer === "function") await stopTimer();
   if (sessionToken) {
     try {
       await fetch(`${API_BASE}/api/auth/logout`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${sessionToken}` },
       });
-    } catch (err) {
-      console.warn("[인증] 서버 로그아웃 실패 (로컬만 삭제):", err);
-    }
+    } catch {}
   }
-
-  // 3단계: 로컬 데이터 전부 삭제
-  localStorage.removeItem("sessionToken");
-  localStorage.removeItem("userInfo");
-  localStorage.removeItem("tabId");
-  localStorage.removeItem("activeTabId");
-
-  // 4단계: 구글 세션도 초기화
-  if (typeof google !== "undefined") {
-    google.accounts.id.disableAutoSelect();
-  }
-
-  // 5단계: UI 리셋 및 로그인 화면 표시
+  clearSession();
+  closeModal("profile-modal");
   showLoginUI();
-
-  // 채팅 입력 비활성화
+  if (typeof google !== "undefined") google.accounts.id.disableAutoSelect();
   const chatInput = document.getElementById("chat-input");
   const chatSendBtn = document.getElementById("chat-send-btn");
-  if (chatInput) chatInput.disabled = true;
+  if (chatInput) { chatInput.disabled = true; chatInput.placeholder = "채팅하려면 로그인하세요"; }
   if (chatSendBtn) chatSendBtn.disabled = true;
-
-  console.log("[인증] 로그아웃 완료");
 }
-
-// 별칭 (오타 대비)
 const sighOut = signOut;
 
-
 // =============================================
-// getUserProfile(token)
-// 목적: 유저 프로필 + 어제 순위 데이터 가져와 UI 갱신
+// launchGame(): 타이머 + 채팅 시작
 // =============================================
-async function getUserProfile(token) {
-  try {
-    const res = await fetch(`${API_BASE}/api/auth/check`, {
-      headers: { "Authorization": `Bearer ${token}` },
-    });
-    const data = await res.json();
-
-    if (data.valid) {
-      updateUserUI(data.user);
-      return data.user;
-    }
-  } catch (err) {
-    console.error("[인증] 프로필 로드 실패:", err);
-  }
-  return null;
+async function launchGame() {
+  if (typeof startTimerService === "function") await startTimerService();
+  if (typeof initChat === "function") await initChat();
+  document.dispatchEvent(new CustomEvent("auth-success",
+    { detail: JSON.parse(localStorage.getItem("userInfo") || "{}") }
+  ));
 }
-
 
 // =============================================
 // isAdminCheck(user)
-// 목적: 관리자 여부 판별 후 관리자 대시보드 버튼 표시
-// ⚠️ 보안: 이 함수는 UI 표시용. 실제 관리자 기능 실행 시
-//          백엔드에서 반드시 role을 DB 기준으로 재검증!
+// ⚠️ 보안: UI 표시용. 실제 API는 백엔드에서 role 재검증
 // =============================================
 function isAdminCheck(user) {
   const adminPanel = document.getElementById("admin-panel");
   const adminBtn = document.getElementById("admin-dashboard-btn");
-
-  // role은 백엔드에서 받아온 값 (프론트 조작 불가)
-  if (user && user.role === "admin") {
-    if (adminPanel) adminPanel.classList.remove("hidden");
-    if (adminBtn) adminBtn.classList.remove("hidden");
-    console.log("[관리자] 관리자 권한 확인됨");
-  } else {
-    if (adminPanel) adminPanel.classList.add("hidden");
-    if (adminBtn) adminBtn.classList.add("hidden");
-  }
+  const isAdmin = user && user.role === "admin";
+  adminPanel?.[isAdmin ? "classList" : "classList"][isAdmin ? "remove" : "add"]("hidden");
+  adminBtn?.[isAdmin ? "classList" : "classList"][isAdmin ? "remove" : "add"]("hidden");
 }
-
 
 // =============================================
 // getAdminPower()
-// 목적: 관리자 전용 API 기능 실행 (채팅 삭제, 타이머 강제 종료)
-// ⚠️ 보안: 이 함수 호출 자체보다 백엔드 API에서의 검증이 더 중요!
-//   프론트에서 role 체크는 UX용. 실제 보안은 Workers에서 담당.
+// ⚠️ 보안: 프론트 role 체크는 UX용. 실제 보안은 Workers가 담당.
 // =============================================
 async function getAdminPower(action, payload = {}) {
   const sessionToken = localStorage.getItem("sessionToken");
   const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
-
-  // 프론트 1차 검사 (UX 최적화용, 보안 기능 아님)
-  if (userInfo.role !== "admin") {
-    alert("관리자 권한이 없습니다.");
-    return;
-  }
-
+  if (userInfo.role !== "admin") { alert("관리자 권한이 없습니다."); return; }
+  const endpoints = { "force-stop": "/api/admin/force-stop", "midnight-reset": "/api/admin/midnight-reset" };
+  const endpoint = endpoints[action];
+  if (!endpoint) return;
   try {
-    let endpoint = "";
-    let body = payload;
-
-    switch (action) {
-      case "force-stop":
-        endpoint = "/api/admin/force-stop";
-        break;
-      case "midnight-reset":
-        endpoint = "/api/admin/midnight-reset";
-        break;
-      default:
-        console.error("[관리자] 알 수 없는 액션:", action);
-        return;
-    }
-
     const res = await fetch(`${API_BASE}${endpoint}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${sessionToken}`,
-      },
-      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sessionToken}` },
+      body: JSON.stringify(payload),
     });
-
-    const data = await res.json();
-    console.log("[관리자] 액션 결과:", data);
-    return data;
-
-  } catch (err) {
-    console.error("[관리자] API 호출 실패:", err);
-  }
+    return await res.json();
+  } catch (err) { console.error("[관리자] API 호출 실패:", err); }
 }
 
-
 // =============================================
-// updateUserUI(user)
-// 목적: 로그인된 유저 정보를 화면에 반영
+// updateUserUI(user): 헤더 UI 업데이트
+// ※ 닉네임 우선, 없으면 구글 이름 fallback
 // =============================================
 function updateUserUI(user) {
-  // 로그인 버튼 숨기기
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) loginBtn.classList.add("hidden");
+  document.getElementById("login-btn")?.classList.add("hidden");
+  document.getElementById("user-profile")?.classList.remove("hidden");
 
-  // 유저 프로필 영역 표시
-  const userProfile = document.getElementById("user-profile");
-  if (userProfile) userProfile.classList.remove("hidden");
-
-  // 아바타 이미지
   const avatarImg = document.getElementById("user-avatar");
   if (avatarImg && user.picture) {
     avatarImg.src = user.picture;
-    avatarImg.alt = `${user.name} 프로필`;
+    avatarImg.alt = `${user.nickname || user.name} 프로필`;
   }
 
-  // 닉네임 표시
   const nameEl = document.getElementById("user-name");
-  if (nameEl) nameEl.textContent = user.name;
+  // ★ 닉네임이 있으면 닉네임, 없으면 구글 이름
+  if (nameEl) nameEl.textContent = user.nickname || user.name;
 
-  // 채팅 입력 활성화
   const chatInput = document.getElementById("chat-input");
   const chatSendBtn = document.getElementById("chat-send-btn");
-  if (chatInput) {
-    chatInput.disabled = false;
-    chatInput.placeholder = "메시지를 입력하세요...";
-  }
+  if (chatInput) { chatInput.disabled = false; chatInput.placeholder = "메시지를 입력하세요..."; }
   if (chatSendBtn) chatSendBtn.disabled = false;
 }
 
-
-// =============================================
-// showLoginUI()
-// 목적: 비로그인 상태 UI 표시
-// =============================================
 function showLoginUI() {
-  // 로그인 버튼 표시
-  const loginBtn = document.getElementById("login-btn");
-  if (loginBtn) loginBtn.classList.remove("hidden");
-
-  // 유저 프로필 숨기기
-  const userProfile = document.getElementById("user-profile");
-  if (userProfile) userProfile.classList.add("hidden");
-
-  // 관리자 패널 숨기기
-  const adminPanel = document.getElementById("admin-panel");
-  if (adminPanel) adminPanel.classList.add("hidden");
-
-  // 채팅 비활성화 (로그인 필요 안내)
+  document.getElementById("login-btn")?.classList.remove("hidden");
+  document.getElementById("user-profile")?.classList.add("hidden");
+  document.getElementById("admin-panel")?.classList.add("hidden");
   const chatInput = document.getElementById("chat-input");
-  if (chatInput) {
-    chatInput.disabled = true;
-    chatInput.placeholder = "채팅하려면 로그인하세요";
-  }
+  if (chatInput) { chatInput.disabled = true; chatInput.placeholder = "채팅하려면 로그인하세요"; }
 }
 
+// =============================================
+// 유틸리티
+// =============================================
+function clearSession() {
+  ["sessionToken", "userInfo", "tabId", "activeTabId"].forEach(k => localStorage.removeItem(k));
+}
 
-// =============================================
-// loadGoogleSDK()
-// 목적: Google Identity Services 스크립트 동적 로드
-// =============================================
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) { modal.classList.add("hidden"); modal.classList.remove("flex"); }
+}
+
+// status: "error" | "success" | "loading" | ""
+function setNicknameStatus(type, status, message) {
+  const el = document.getElementById(`nickname-${type}-status`);
+  if (!el) return;
+  el.textContent = message;
+  const colors = { error: "text-red-400", success: "text-green-400", loading: "text-slate-400", "": "text-transparent" };
+  el.className = `text-xs mt-1 min-h-[16px] ${colors[status] || "text-transparent"}`;
+}
+
+function setModalLoading(type, isLoading) {
+  const btn = document.getElementById(`nickname-${type}-btn`);
+  if (!btn) return;
+  btn.disabled = isLoading;
+  btn.textContent = isLoading ? "저장 중..." : (type === "set" ? "시작하기" : "변경하기");
+}
+
 function loadGoogleSDK() {
   return new Promise((resolve) => {
-    if (typeof google !== "undefined") {
-      resolve(); // 이미 로드됨
-      return;
-    }
-
+    if (typeof google !== "undefined") { resolve(); return; }
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
+    script.async = true; script.defer = true; script.onload = resolve;
     document.head.appendChild(script);
   });
 }
 
-
-// =============================================
-// 페이지 로드 시 자동 실행
-// =============================================
-document.addEventListener("DOMContentLoaded", () => {
-  initAuth();
-});
+document.addEventListener("DOMContentLoaded", () => { initAuth(); });

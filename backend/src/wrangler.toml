@@ -4,7 +4,7 @@
 # Cloudflare 대시보드 → Workers → 내 계정 정보에서 확인
 # =============================================
 
-name = "killcount-backend"
+name = "counttimeout-backend"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
@@ -21,8 +21,8 @@ database_id = "여기에_D1_DATABASE_ID_입력"
 # --- Cloudflare R2 스토리지 연결 (아바타 이미지 등) ---
 [[r2_buckets]]
 binding = "R2"                          # Workers 코드에서 env.R2로 접근
-bucket_name = "killcount-storage"
-# ⚠️ 필수 수정: wrangler r2 bucket create killcount-storage 실행 후 생성
+bucket_name = "counttimeout-storage"
+# ⚠️ 필수 수정: wrangler r2 bucket create counttimeout-storage 실행 후 생성
 
 # --- Durable Objects 연결 (실시간 채팅 & 타이머 동기화) ---
 [[durable_objects.bindings]]

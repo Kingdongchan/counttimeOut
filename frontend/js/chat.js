@@ -14,8 +14,8 @@ const MAX_MESSAGES = 100;       // 채팅창 최대 메시지 개수 (메모리 
 
 // ⚠️ 필수 수정: wrangler deploy 후 실제 Workers URL로 교체
 // WebSocket은 https → wss, http → ws로 프로토콜 변경
-const WS_URL = "wss://killcount-backend.여기에_서브도메인.workers.dev/api/ws/chat";
-const API_BASE = "https://killcount-backend.여기에_서브도메인.workers.dev";
+const WS_URL = "wss://counttimeout-backend.여기에_서브도메인.workers.dev/api/ws/chat";
+const API_BASE = "https://counttimeout-backend.여기에_서브도메인.workers.dev";
 
 
 // =============================================

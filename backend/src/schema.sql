@@ -1,7 +1,7 @@
 -- =============================================
 -- 데이터베이스: stayalive_db
 -- 엔진: Cloudflare D1 (SQLite 문법)
--- 목적: Killcount 게임의 유저·기록·채팅·세션 관리
+-- 목적: CountTimeout 게임의 유저·기록·채팅·세션 관리
 -- ⚠️ 중요: Cloudflare D1 콘솔 또는 wrangler d1 execute 명령어로 실행
 -- =============================================
 
@@ -13,24 +13,36 @@
 -- =============================================
 CREATE TABLE IF NOT EXISTS users (
     -- Google OAuth sub 값을 기본 키로 사용 (고유한 구글 유저 ID)
-    id          TEXT PRIMARY KEY,
+    id                  TEXT PRIMARY KEY,
 
     -- 구글 계정 이메일 (유니크 보장, 관리자 판별에도 사용)
-    email       TEXT UNIQUE NOT NULL,
+    email               TEXT UNIQUE NOT NULL,
 
-    -- 구글 계정 표시 이름
-    name        TEXT NOT NULL,
+    -- 구글 계정 표시 이름 (원본 보존용 - 닉네임과 별개)
+    name                TEXT NOT NULL,
 
     -- 구글 프로필 사진 URL
-    picture     TEXT,
+    picture             TEXT,
 
     -- 권한 구분: 'user' | 'admin'
     -- ⚠️ 보안: 프론트엔드 표시용 참고값. 실제 권한 검증은 반드시 백엔드(Workers)에서 이중 검증할 것!
-    role        TEXT NOT NULL DEFAULT 'user',
+    role                TEXT NOT NULL DEFAULT 'user',
+
+    -- 유저가 직접 설정한 별명 (null이면 닉네임 미설정 = 최초 방문자)
+    -- null 여부로 "처음 방문자인지" 판별함
+    nickname            TEXT UNIQUE,
+
+    -- 닉네임을 마지막으로 변경한 시각 (Unix 타임스탬프 ms)
+    -- null이면 아직 한 번도 변경 안 함 (최초 설정은 제한 없음)
+    -- 24시간(86400000ms) 이내 재변경 차단에 사용
+    nickname_changed_at INTEGER,
 
     -- 최초 가입일
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 닉네임 중복 방지 인덱스 (UNIQUE 제약이 있지만 조회 속도도 향상)
+CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
 
 
 -- =============================================

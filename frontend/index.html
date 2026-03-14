@@ -2,7 +2,7 @@
 <!--
   =============================================
   frontend/index.html
-  Killcount - 생존 시간 경쟁 게임
+  CountTimeout - 생존 시간 경쟁 게임
   디자인: Stitch 초안 기반, 네이비 다크 테마
   ⚠️ 배포 전 확인: API_BASE URL을 실제 Workers URL로 교체 (auth.js, timer.js, chat.js)
   =============================================
@@ -11,7 +11,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Killcount</title>
+  <title>CountTimeout</title>
   <meta name="description" content="실시간 생존 시간 경쟁 플랫폼" />
 
   <!-- Tailwind CSS (CDN - 배포 시 빌드 방식 권장) -->
@@ -161,7 +161,7 @@
             <span class="material-symbols-outlined text-white text-2xl">timer</span>
           </div>
           <h1 class="text-xl font-bold tracking-tight">
-            KILL<span class="text-primary">COUNT</span>
+            Count<span class="text-primary">Timeout</span>
           </h1>
         </div>
 
@@ -181,8 +181,8 @@
             <span class="material-symbols-outlined text-sm align-middle">info</span>
             규칙
           </a>
-          <a href="#rewards" class="hover:text-primary transition-colors">후원하기</a>
-          <a href="#rewards" class="hover:text-primary transition-colors">기부 현황</a>
+          <a href="#hall-of-fame" class="hover:text-primary transition-colors">후원하기</a>
+          <a href="#rewards" class="hover:text-primary transition-colors">후원 공지</a>
           <!-- 언어 전환 -->
           <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg glass cursor-pointer hover:border-primary/50 transition-colors text-slate-300">
             <span class="material-symbols-outlined text-sm">language</span>
@@ -203,7 +203,7 @@
         <!-- 유저 프로필 (로그인 후 표시) -->
         <div id="user-profile" class="hidden flex items-center gap-3">
           <span id="user-name" class="text-sm font-medium text-slate-300 hidden md:block"></span>
-          <div class="size-10 rounded-full border border-glass-border p-0.5 cursor-pointer" onclick="signOut()">
+          <div class="size-10 rounded-full border border-glass-border p-0.5 cursor-pointer hover:border-primary/60 transition-colors" onclick="showProfileModal()" title="프로필 / 별명 변경">
             <img
               id="user-avatar"
               alt="프로필"
@@ -476,10 +476,9 @@
             <div class="flex gap-3">
               <span class="text-primary font-bold text-lg">04</span>
               <div>
-                <p class="font-bold text-white mb-1">기부</p>
-                <p>광고 수익이나 후원금의 50%는 기부됩니다. 참여만으로 세상을 밝혀주세요.</p>
+                <p class="font-bold text-white mb-1">서버 기준 시간</p>
+                <p>로컬 시계 조작은 통하지 않습니다. 모든 기록은 서버 시간으로 검증됩니다.</p>
               </div>
-              
             </div>
           </div>
         </div>
@@ -521,6 +520,14 @@
          푸터
          ============================================= -->
     <footer class="py-10 border-t border-glass-border text-center">
+      <div class="flex flex-col items-center gap-6">
+        <div class="flex items-center gap-6 text-sm font-medium text-slate-500">
+          <a href="#" class="hover:text-primary">소개</a>
+          <a href="#" class="hover:text-primary">개인정보처리방침</a>
+          <a href="#" class="hover:text-primary">이용약관</a>
+          <a href="#" class="hover:text-primary">API</a>
+        </div>
+
         <!-- 소셜 링크 -->
         <div class="flex items-center gap-4">
           <!-- 인스타그램 -->
@@ -535,16 +542,188 @@
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
             </svg>
           </div>
+          <!-- 깃허브 -->
+          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+            <svg class="size-4 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+            </svg>
+          </div>
         </div>
 
         <p class="text-xs text-slate-600 font-bold uppercase tracking-widest">
-          © 2024 Killcount. All Rights Reserved.
+          © 2024 CountTimeout. All Rights Reserved.
         </p>
       </div>
     </footer>
 
   </div><!-- end .layout-container -->
 
+
+
+  <!-- =============================================
+       모달 1: 닉네임 최초 설정
+       조건: 구글 로그인 후 nickname === null 인 경우
+       특징: 닫기 버튼 없음 (설정 전까지 게임 불가)
+       ============================================= -->
+  <div
+    id="nickname-set-modal"
+    class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm items-center justify-center p-4"
+  >
+    <div class="glass rounded-2xl w-full max-w-md p-8 flex flex-col gap-6 border border-glass-border">
+
+      <!-- 타이틀 -->
+      <div class="text-center">
+        <div class="bg-primary/10 border border-primary/30 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <span class="material-symbols-outlined text-primary text-3xl">badge</span>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-1">별명을 정해주세요</h2>
+        <p class="text-slate-400 text-sm">랭킹과 채팅에 표시될 나만의 이름입니다</p>
+      </div>
+
+      <!-- 구글 이름 힌트 -->
+      <div class="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg">
+        <span class="material-symbols-outlined text-slate-500 text-sm">person</span>
+        <span class="text-slate-500 text-xs">구글 계정:</span>
+        <span id="nickname-set-hint" class="text-slate-300 text-xs font-medium"></span>
+      </div>
+
+      <!-- 입력창 -->
+      <div class="flex flex-col gap-1">
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">별명</label>
+        <input
+          id="nickname-set-input"
+          type="text"
+          maxlength="12"
+          placeholder="2~12자, 한글/영문/숫자/_"
+          class="bg-white/5 border border-glass-border rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-primary/60 transition-colors placeholder:text-slate-600"
+          oninput="checkNicknameDuplicate('set')"
+          onkeydown="if(event.key==='Enter') submitNicknameSet()"
+        />
+        <!-- 상태 메시지 (중복 확인 결과 / 에러) -->
+        <span id="nickname-set-status" class="text-xs mt-1 min-h-[16px] text-transparent">-</span>
+      </div>
+
+      <!-- 규칙 안내 -->
+      <ul class="text-xs text-slate-500 space-y-1 list-none">
+        <li class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-xs text-slate-600">check_circle</span>
+          한글, 영문, 숫자, _ 사용 가능
+        </li>
+        <li class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-xs text-slate-600">check_circle</span>
+          2자 이상 12자 이하
+        </li>
+        <li class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-xs text-slate-600">schedule</span>
+          설정 후 24시간마다 한 번 변경 가능
+        </li>
+      </ul>
+
+      <!-- 확인 버튼 -->
+      <button
+        id="nickname-set-btn"
+        onclick="submitNicknameSet()"
+        class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        시작하기
+      </button>
+    </div>
+  </div>
+
+
+  <!-- =============================================
+       모달 2: 프로필 / 닉네임 변경
+       호출: 헤더 아바타 클릭 시 showProfileModal()
+       포함: 현재 닉네임, 변경 폼, 쿨다운 안내, 로그아웃
+       ============================================= -->
+  <div
+    id="profile-modal"
+    class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm items-center justify-center p-4"
+    onclick="if(event.target===this) closeModal('profile-modal')"
+  >
+    <div class="glass rounded-2xl w-full max-w-md p-8 flex flex-col gap-6 border border-glass-border relative">
+
+      <!-- 닫기 버튼 -->
+      <button
+        onclick="closeModal('profile-modal')"
+        class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <!-- 프로필 헤더 -->
+      <div class="flex items-center gap-4">
+        <div class="size-16 rounded-full border-2 border-primary overflow-hidden">
+          <img
+            id="profile-modal-img"
+            alt="프로필"
+            class="w-full h-full object-cover"
+            src="assets/img/guest-avatar.png"
+          />
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <!-- 현재 닉네임 (큰 글씨) -->
+          <span id="profile-current-nickname" class="text-xl font-bold text-white"></span>
+          <!-- 구글 원본 이름 (작은 글씨) -->
+          <span class="text-xs text-slate-500 flex items-center gap-1">
+            <span class="material-symbols-outlined text-xs">account_circle</span>
+            <span id="profile-google-name"></span>
+          </span>
+        </div>
+      </div>
+
+      <div class="border-t border-glass-border"></div>
+
+      <!-- 닉네임 변경 섹션 -->
+      <div class="flex flex-col gap-3">
+        <h3 class="text-sm font-bold text-slate-300 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-primary">edit</span>
+          별명 변경
+        </h3>
+
+        <!-- 24시간 쿨다운 안내 (쿨다운 중일 때만 표시) -->
+        <div
+          id="nickname-cooldown-msg"
+          class="hidden px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-xs text-yellow-400 flex items-center gap-2"
+        >
+          <span class="material-symbols-outlined text-sm">schedule</span>
+          <span></span>
+        </div>
+
+        <div class="flex gap-2">
+          <input
+            id="nickname-change-input"
+            type="text"
+            maxlength="12"
+            placeholder="새 별명 (2~12자)"
+            class="flex-1 bg-white/5 border border-glass-border rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-primary/60 transition-colors placeholder:text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            oninput="checkNicknameDuplicate('change')"
+            onkeydown="if(event.key==='Enter') submitNicknameChange()"
+          />
+          <button
+            id="nickname-change-btn"
+            onclick="submitNicknameChange()"
+            class="bg-primary hover:bg-primary/90 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            변경하기
+          </button>
+        </div>
+        <!-- 중복 확인 / 에러 / 성공 상태 -->
+        <span id="nickname-change-status" class="text-xs min-h-[16px] text-transparent">-</span>
+      </div>
+
+      <div class="border-t border-glass-border"></div>
+
+      <!-- 로그아웃 버튼 -->
+      <button
+        onclick="signOut()"
+        class="flex items-center gap-2 text-slate-400 hover:text-red-400 text-sm font-medium transition-colors"
+      >
+        <span class="material-symbols-outlined text-sm">logout</span>
+        로그아웃
+      </button>
+    </div>
+  </div>
 
   <!-- =============================================
        JavaScript 로드 (순서 중요!)
@@ -564,7 +743,7 @@
 
     // --- 리더보드 로드 ---
     // ⚠️ 필수 수정: API_BASE를 실제 Workers URL로 교체
-    const API_BASE_PAGE = "https://killcount-backend.여기에_서브도메인.workers.dev";
+    const API_BASE_PAGE = "https://counttimeout-backend.여기에_서브도메인.workers.dev";
 
     async function loadLeaderboard(mode = "live") {
       const tbody = document.getElementById("leaderboard-body");

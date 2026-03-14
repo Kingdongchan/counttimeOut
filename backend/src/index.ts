@@ -27,7 +27,7 @@ export default {
     // CORS 헤더 (프론트엔드 도메인으로 교체 필요)
     // ⚠️ 필수 수정: 배포 후 실제 Pages 도메인으로 변경
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "*", // 배포 시 "https://killcount.pages.dev"로 변경
+      "Access-Control-Allow-Origin": "*", // 배포 시 "https://countTimeout.pages.dev"로 변경
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
     };
@@ -58,6 +58,21 @@ export default {
       // [로그아웃] 세션 삭제
       if (path === "/api/auth/logout" && request.method === "POST") {
         return await handleLogout(request, env, corsHeaders);
+      }
+
+      // [닉네임] 최초 설정 (처음 방문자 - 24시간 제한 없음)
+      if (path === "/api/nickname/set" && request.method === "POST") {
+        return await handleNicknameSet(request, env, corsHeaders);
+      }
+
+      // [닉네임] 변경 (24시간 쿨다운 적용)
+      if (path === "/api/nickname/change" && request.method === "POST") {
+        return await handleNicknameChange(request, env, corsHeaders);
+      }
+
+      // [닉네임] 중복 확인 (닉네임 입력 중 실시간 체크)
+      if (path === "/api/nickname/check" && request.method === "GET") {
+        return await handleNicknameCheck(request, env, corsHeaders);
       }
 
       // [타이머] 오늘 누적 기록 조회
@@ -188,7 +203,7 @@ async function handleAuthCheck(request: Request, env: Env, corsHeaders: Record<s
   }
 
   const result = await env.DB.prepare(`
-    SELECT s.user_id, u.name, u.picture, u.email, u.role
+    SELECT s.user_id, u.name, u.nickname, u.picture, u.email, u.role, u.nickname_changed_at
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.session_id = ?
@@ -211,6 +226,168 @@ async function handleLogout(request: Request, env: Env, corsHeaders: Record<stri
     await env.DB.prepare("DELETE FROM sessions WHERE session_id = ?").bind(sessionId).run();
   }
   return jsonResponse({ success: true }, corsHeaders);
+}
+
+
+// =============================================
+// [닉네임] 최초 설정
+// 목적: 처음 방문한 유저의 닉네임을 최초로 등록
+// 규칙: 최초 설정은 24시간 제한 없음. nickname이 null인 경우에만 허용.
+// =============================================
+async function handleNicknameSet(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  const userId = await getAuthUserId(request, env);
+  if (!userId) return jsonResponse({ error: "인증 필요" }, corsHeaders, 401);
+
+  const { nickname } = await request.json() as { nickname: string };
+
+  // 닉네임 유효성 검사
+  const validation = validateNickname(nickname);
+  if (!validation.valid) {
+    return jsonResponse({ error: validation.message }, corsHeaders, 400);
+  }
+
+  // 이미 닉네임이 설정된 유저는 이 API 사용 불가 (변경은 /change 사용)
+  const user = await env.DB.prepare(
+    "SELECT nickname FROM users WHERE id = ?"
+  ).bind(userId).first() as any;
+
+  if (user?.nickname !== null && user?.nickname !== undefined) {
+    return jsonResponse({ error: "이미 닉네임이 설정되어 있습니다. 변경은 별도 API를 이용하세요." }, corsHeaders, 409);
+  }
+
+  // 닉네임 중복 확인
+  const duplicate = await env.DB.prepare(
+    "SELECT id FROM users WHERE nickname = ? AND id != ?"
+  ).bind(nickname.trim(), userId).first();
+
+  if (duplicate) {
+    return jsonResponse({ error: "이미 사용 중인 별명입니다.", code: "DUPLICATE" }, corsHeaders, 409);
+  }
+
+  // 닉네임 저장 (최초 설정은 nickname_changed_at을 현재 시각으로)
+  await env.DB.prepare(`
+    UPDATE users SET nickname = ?, nickname_changed_at = ? WHERE id = ?
+  `).bind(nickname.trim(), Date.now(), userId).run();
+
+  // daily_record의 nickname도 동기화
+  await env.DB.prepare(`
+    UPDATE daily_record SET nickname = ? WHERE user_id = ?
+  `).bind(nickname.trim(), userId).run();
+
+  return jsonResponse({ success: true, nickname: nickname.trim() }, corsHeaders);
+}
+
+
+// =============================================
+// [닉네임] 변경 (24시간 쿨다운)
+// 목적: 기존 닉네임을 새 닉네임으로 변경
+// 규칙: 마지막 변경 후 24시간(86400000ms) 이후에만 가능
+// =============================================
+async function handleNicknameChange(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  const userId = await getAuthUserId(request, env);
+  if (!userId) return jsonResponse({ error: "인증 필요" }, corsHeaders, 401);
+
+  const { nickname } = await request.json() as { nickname: string };
+
+  // 닉네임 유효성 검사
+  const validation = validateNickname(nickname);
+  if (!validation.valid) {
+    return jsonResponse({ error: validation.message }, corsHeaders, 400);
+  }
+
+  // 현재 유저 정보 조회
+  const user = await env.DB.prepare(
+    "SELECT nickname, nickname_changed_at FROM users WHERE id = ?"
+  ).bind(userId).first() as any;
+
+  // 24시간 쿨다운 체크
+  const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24시간
+  const now = Date.now();
+
+  if (user?.nickname_changed_at) {
+    const elapsed = now - user.nickname_changed_at;
+    if (elapsed < COOLDOWN_MS) {
+      const remainingMs = COOLDOWN_MS - elapsed;
+      const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
+      const remainingMins = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+      return jsonResponse({
+        error: `별명은 24시간에 한 번만 변경할 수 있습니다.`,
+        code: "COOLDOWN",
+        remainingMs,
+        remainingHours,
+        remainingMins,
+      }, corsHeaders, 429);
+    }
+  }
+
+  // 닉네임 중복 확인 (자기 자신 제외)
+  const duplicate = await env.DB.prepare(
+    "SELECT id FROM users WHERE nickname = ? AND id != ?"
+  ).bind(nickname.trim(), userId).first();
+
+  if (duplicate) {
+    return jsonResponse({ error: "이미 사용 중인 별명입니다.", code: "DUPLICATE" }, corsHeaders, 409);
+  }
+
+  // 닉네임 변경 및 변경 시각 기록
+  await env.DB.prepare(`
+    UPDATE users SET nickname = ?, nickname_changed_at = ? WHERE id = ?
+  `).bind(nickname.trim(), now, userId).run();
+
+  // daily_record 닉네임도 동기화
+  await env.DB.prepare(`
+    UPDATE daily_record SET nickname = ? WHERE user_id = ?
+  `).bind(nickname.trim(), userId).run();
+
+  return jsonResponse({ success: true, nickname: nickname.trim() }, corsHeaders);
+}
+
+
+// =============================================
+// [닉네임] 중복 확인 (실시간 체크용)
+// 목적: 닉네임 입력 중 즉시 중복 여부 반환
+// =============================================
+async function handleNicknameCheck(request: Request, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  const url = new URL(request.url);
+  const nickname = url.searchParams.get("nickname") || "";
+
+  const validation = validateNickname(nickname);
+  if (!validation.valid) {
+    return jsonResponse({ available: false, message: validation.message }, corsHeaders);
+  }
+
+  const existing = await env.DB.prepare(
+    "SELECT id FROM users WHERE nickname = ?"
+  ).bind(nickname.trim()).first();
+
+  return jsonResponse({
+    available: !existing,
+    message: existing ? "이미 사용 중인 별명입니다." : "사용 가능한 별명입니다.",
+  }, corsHeaders);
+}
+
+
+// =============================================
+// 닉네임 유효성 검사 공통 함수
+// 규칙: 2~12자, 특수문자 불허 (한글/영문/숫자/언더스코어만)
+// =============================================
+function validateNickname(nickname: string): { valid: boolean; message: string } {
+  if (!nickname || nickname.trim().length === 0) {
+    return { valid: false, message: "별명을 입력해주세요." };
+  }
+  const trimmed = nickname.trim();
+  if (trimmed.length < 2) {
+    return { valid: false, message: "별명은 2자 이상이어야 합니다." };
+  }
+  if (trimmed.length > 12) {
+    return { valid: false, message: "별명은 12자 이하여야 합니다." };
+  }
+  // 허용: 한글, 영문(대소문자), 숫자, 언더스코어(_)
+  const allowed = /^[가-힣a-zA-Z0-9_]+$/;
+  if (!allowed.test(trimmed)) {
+    return { valid: false, message: "별명은 한글, 영문, 숫자, _만 사용할 수 있습니다." };
+  }
+  return { valid: true, message: "" };
 }
 
 

@@ -17,8 +17,8 @@ let midnightTimeout = null;         // 자정 리셋 타이머
 let syncInterval = null;            // 서버 동기화 주기 인터벌
 
 // ⚠️ 필수 수정: 실제 백엔드 Workers URL로 교체 (wrangler deploy 후 확인)
-// 예시: "https://killcount-backend.your-subdomain.workers.dev"
-const API_BASE = "https://killcount-backend.여기에_서브도메인.workers.dev";
+// 예시: "https://CountTimeout-backend.your-subdomain.workers.dev"
+const API_BASE = "https://CountTimeout-backend.여기에_서브도메인.workers.dev";
 
 // DB 업데이트 주기 (ms) - 너무 짧으면 D1 요금 증가
 const DB_SYNC_INTERVAL = 30000; // 30초마다 DB에 기록 저장
