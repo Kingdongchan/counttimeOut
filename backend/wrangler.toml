@@ -36,7 +36,7 @@ class_name = "TimerSync"
 # Durable Objects 마이그레이션 (처음 배포 시 반드시 실행)
 [[migrations]]
 tag = "v1"
-new_classes = ["ChatRoom", "TimerSync"]
+new_sqlite_classes = ["ChatRoom", "TimerSync"]
 
 # --- 환경변수 (민감 정보는 .dev.vars에 따로 관리) ---
 [vars]

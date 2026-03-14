@@ -11,6 +11,7 @@
     "db:create": "cd backend && wrangler d1 create stayalive_db"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260313.1",
     "typescript": "^5.0.0",
     "wrangler": "^3.0.0"
   },

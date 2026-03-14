@@ -16,7 +16,7 @@
 const GOOGLE_CLIENT_ID = "525190783722-vm0ip4dli22ld0i2lgkreqv7165uc3k0.apps.googleusercontent.com";
 
 // ⚠️ 필수 수정 2: wrangler deploy 후 실제 Workers URL로 교체
-const API_BASE = "https://counttimeout-backend.여기에_서브도메인.workers.dev";
+const API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
 
 // 닉네임 중복 확인 debounce 타이머
 let nicknameCheckTimer = null;
