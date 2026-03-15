@@ -35,24 +35,42 @@ function renderLeaderboard(data) {
   if (!tbody) return;
 
   if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-10 text-slate-500 text-xs">기록이 아직 없습니다.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-slate-500 text-xs">기록이 아직 없습니다.</td></tr>';
     return;
   }
 
   tbody.innerHTML = data.map((entry, index) => {
-    // timer.js에 정의된 transTime 함수가 전역에 있어야 합니다.
-    const { h, m, s } = typeof transTime === 'function' ? transTime(entry.ms) : { h: "00", m: "00", s: "00" };
+    // [수정 핵심] 데이터 이름이 ms, count, today_accumulated_ms 중 무엇이든 숫자로 변환
+    const rawMs = entry.ms || entry.count || entry.today_accumulated_ms || 0;
+    const msValue = parseInt(rawMs);
+    
+    // transTime 호출 (숫자가 아닐 경우를 대비해 0으로 방어)
+    const { h, m, s } = (typeof transTime === 'function' && !isNaN(msValue)) 
+                        ? transTime(msValue) 
+                        : { h: "00", m: "00", s: "00" };
     
     let rankBadge = index + 1;
-    if (index === 0) rankBadge = "🥇";
-    else if (index === 1) rankBadge = "🥈";
-    else if (index === 2) rankBadge = "🥉";
+    if (index === 0) rankBadge = "01 <span class='text-[10px]'>🥇</span>";
+    else if (index === 1) rankBadge = "02 <span class='text-[10px]'>🥈</span>";
+    else if (index === 2) rankBadge = "03 <span class='text-[10px]'>🥉</span>";
+    else rankBadge = String(index + 1).padStart(2, '0');
 
+    // 스크린샷의 디자인을 살리기 위해 상태 배지(접속 중 등)를 넣으려면 아래 구조 유지
     return `
-      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-        <td class="py-3 px-4 text-[10px] font-mono text-slate-500">${rankBadge}</td>
-        <td class="py-3 px-4 text-xs font-bold text-slate-300">${escapeHtml(entry.nickname || '익명')}</td>
-        <td class="py-3 px-4 text-xs font-mono text-primary text-right">${h}:${m}:${s}</td>
+      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors items-center">
+        <td class="py-4 px-4 text-sm font-mono italic text-orange-500">${rankBadge}</td>
+        <td class="py-4 px-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-slate-800 border border-orange-500/50"></div>
+            <span class="text-sm font-bold text-slate-200">${escapeHtml(entry.nickname || '익명')}</span>
+          </div>
+        </td>
+        <td class="py-4 px-4">
+          <span class="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30">접속 중</span>
+        </td>
+        <td class="py-4 px-4 text-right font-mono text-white font-bold text-lg">
+          ${h} : ${m} : ${s}
+        </td>
       </tr>
     `;
   }).join('');

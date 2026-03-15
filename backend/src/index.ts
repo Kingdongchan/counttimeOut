@@ -200,10 +200,10 @@ async function handleLeaderboard(request: Request, env: Env, corsHeaders: any) {
   if (mode === "live") {
     // 오늘 실시간 TOP 100
     const { results } = await env.DB.prepare(`
-      SELECT nickname, today_accumulated_ms as ms 
-      FROM daily_record 
-      WHERE date = ? AND today_accumulated_ms > 0 
-      ORDER BY today_accumulated_ms DESC LIMIT 100
+      SELECT u.nickname, u.picture, d.today_accumulated_ms as ms 
+      FROM daily_record d
+      JOIN users u ON d.user_id = u.id
+      WHERE d.date = ? ...
     `).bind(today).all();
     return jsonResponse({ leaderboard: results }, corsHeaders);
   } else {
@@ -213,8 +213,7 @@ async function handleLeaderboard(request: Request, env: Env, corsHeaders: any) {
       SELECT u.nickname, h.count as ms 
       FROM history_record h
       JOIN users u ON h.user_id = u.id
-      WHERE h.date = ? 
-      ORDER BY h.count DESC LIMIT 100
+      WHERE h.date = ? ORDER BY h.count DESC LIMIT 100
     `).bind(yesterday).all();
     return jsonResponse({ leaderboard: results }, corsHeaders);
   }
