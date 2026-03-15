@@ -187,34 +187,30 @@ async function handleUpdateTimer(request: Request, env: Env, corsHeaders: any) {
 }
 
 async function handleLeaderboard(request: Request, env: Env, corsHeaders: any) {
-  const url = new URL(request.url);
-  const mode = url.searchParams.get("mode") || "live"; // live 또는 alltime
+  const { searchParams } = new URL(request.url);
+  const mode = searchParams.get("mode"); // 'live' 또는 'alltime'
   
-  // 한국 시간 기준 날짜 설정
-  const now = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-  const today = now.toISOString().split('T')[0];
-  
-  const yesterdayDate = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-  const yesterday = yesterdayDate.toISOString().split('T')[0];
+  const today = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+  const yesterday = new Date(new Date().getTime() + (9 * 60 * 60 * 1000) - (24 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
-  if (mode === "live") {
-    // 오늘 실시간 TOP 100
+  if (mode === "alltime") {
+    // 1. 역대 기록 (history_record) - 비어있으면 빈 배열이 나갑니다.
     const { results } = await env.DB.prepare(`
-      SELECT u.nickname, u.picture, d.today_accumulated_ms as ms 
-      FROM daily_record d
-      JOIN users u ON d.user_id = u.id
-      WHERE d.date = ? ...
-    `).bind(today).all();
-    return jsonResponse({ leaderboard: results }, corsHeaders);
-  } else {
-    // 어제 기록 TOP 100
-    // history_record 테이블 혹은 daily_record의 어제 날짜 데이터에서 가져옴
-    const { results } = await env.DB.prepare(`
-      SELECT u.nickname, h.count as ms 
+      SELECT u.nickname, u.picture, h.count as ms 
       FROM history_record h
       JOIN users u ON h.user_id = u.id
       WHERE h.date = ? ORDER BY h.count DESC LIMIT 100
     `).bind(yesterday).all();
+    return jsonResponse({ leaderboard: results }, corsHeaders);
+  } else {
+    // 2. 실시간 기록 (daily_record)
+    const { results } = await env.DB.prepare(`
+      SELECT u.nickname, u.picture, d.today_accumulated_ms as ms 
+      FROM daily_record d
+      JOIN users u ON d.user_id = u.id
+      WHERE d.date = ? AND d.today_accumulated_ms > 0
+      ORDER BY d.today_accumulated_ms DESC LIMIT 100
+    `).bind(today).all();
     return jsonResponse({ leaderboard: results }, corsHeaders);
   }
 }

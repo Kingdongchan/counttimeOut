@@ -1,21 +1,14 @@
 // =============================================
 // frontend/js/chat.js
 // 역할: 실시간 채팅 관리 (Polling 방식), 메시지 렌더링, 스팸 차단
-// 의존성: timer.js (getCurrentTotalMs), auth.js (유저 정보)
 // =============================================
 
-// =============================================
-// 전역 상태
-// =============================================
-let lastSendTime = 0;           // 마지막 메시지 전송 시각 (스팸 방지)
-let lastMessage = "";           // 마지막 전송 메시지 내용 (중복 방지)
-const MAX_MESSAGES = 100;       // 채팅창 최대 메시지 개수
-let lastChatHash = "";          // [추가] 마지막 채팅 목록 데이터 해시(비교용)
+let lastSendTime = 0;           
+let lastMessage = "";           
+const MAX_MESSAGES = 100;       
+let lastChatHash = "";          
 
-// =============================================
-// renderChat(messageData)
-// 목적: 수신된 메시지를 HTML 문자열로 생성 (DOM 생성 대신 문자열로 반환하여 성능 개선)
-// =============================================
+// [메시지 HTML 생성]
 function createChatHtml(messageData) {
   const { nickname, message, liveTime, isYesterdayKing, created_at } = messageData;
 
@@ -45,10 +38,7 @@ function createChatHtml(messageData) {
   `;
 }
 
-// =============================================
-// sendChat()
-// 목적: 메시지 전송 및 화면 즉시 반영
-// =============================================
+// [메시지 전송]
 async function sendChat() {
   const input = document.getElementById("chat-input");
   if (!input) return;
@@ -87,7 +77,6 @@ async function sendChat() {
       }),
     });
 
-    // 전송 후 즉시 목록 새로고침
     await fetchChatHistory();
   } catch (err) {
     console.error("[채팅] 전송 실패:", err);
@@ -95,10 +84,7 @@ async function sendChat() {
   }
 }
 
-// =============================================
-// fetchChatHistory()
-// 목적: 서버에서 채팅 기록 가져오기 (비교 후 바뀐 경우만 렌더링)
-// =============================================
+// [채팅 기록 로드 - 순서 교정 포함]
 async function fetchChatHistory() {
   const chatContainer = document.getElementById("chat-messages");
   if (!chatContainer) return;
@@ -109,18 +95,20 @@ async function fetchChatHistory() {
 
     const { messages } = await res.json();
     
-    // [중요] 데이터가 이전과 완전히 똑같으면 아무 작업도 하지 않음 (깜빡임 방지 핵심)
     const currentHash = JSON.stringify(messages);
     if (lastChatHash === currentHash) return;
     lastChatHash = currentHash;
 
-    // 현재 스크롤이 바닥인지 확인
-    const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+    // 현재 스크롤이 바닥 근처인지 확인
+    const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 150;
 
-    // 한 번에 HTML 조립해서 갈아끼우기
-    const fullHtml = messages.map(msg => createChatHtml(msg)).join('');
+    // [핵심 수정] 서버에서 온 최신순 배열을 뒤집어서 옛날 메시지가 위로 가게 함
+    const sortedMessages = [...messages].reverse(); 
+    const fullHtml = sortedMessages.map(msg => createChatHtml(msg)).join('');
+    
     chatContainer.innerHTML = fullHtml;
 
+    // 새 메시지가 왔을 때 바닥에 있었다면 스크롤 유지
     if (isAtBottom) {
       scrollConfirm(chatContainer, true);
     }
@@ -129,10 +117,7 @@ async function fetchChatHistory() {
   }
 }
 
-// =============================================
-// initChat()
-// 목적: 초기화 및 이벤트 바인딩
-// =============================================
+// [초기화]
 function initChat() {
   const sendBtn = document.getElementById("chat-send-btn");
   const chatInput = document.getElementById("chat-input");
@@ -148,28 +133,24 @@ function initChat() {
   }
 
   fetchChatHistory();
-  setInterval(fetchChatHistory, 3000); // 3초마다 폴링
+  setInterval(fetchChatHistory, 3000);
 
   document.addEventListener("midnight-reset", () => {
     const chatContainer = document.getElementById("chat-messages");
     if (chatContainer) {
       chatContainer.innerHTML = '<div class="text-center text-xs text-slate-500 py-4">🌅 새로운 하루가 시작되었습니다!</div>';
-      lastChatHash = ""; // 해시 초기화
+      lastChatHash = "";
     }
   });
 }
 
-// =============================================
-// 유틸리티 및 보조 함수들
-// =============================================
+// [유틸리티]
 function scrollConfirm(container, force = false) {
   if (!container) return;
   if (force) {
     container.scrollTop = container.scrollHeight;
   }
 }
-
-// 렌더링 방식 변경으로 limitChat은 fetch 시점에서 처리됨
 
 function checkSpamChat(message) {
   const now = Date.now();
@@ -212,5 +193,4 @@ function showChatAlert(message) {
   }
 }
 
-// 초기화 실행
 document.addEventListener("DOMContentLoaded", initChat);

@@ -30,20 +30,24 @@ const DB_SYNC_INTERVAL = 30000; // 30초마다 DB에 기록 저장
 // 반환: 항상 두 자리 패딩된 문자열 객체
 // =============================================
 function transTime(ms) {
-  // 음수 방어 (서버 오차로 인한 음수 방지)
-  const safeMs = Math.max(0, ms);
+  try {
+    // 숫자가 아니거나 음수일 경우 대비
+    const totalSeconds = Math.floor(Number(ms || 0) / 1000);
+    
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
 
-  const totalSeconds = Math.floor(safeMs / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  // padStart(2, '0'): 한 자리 숫자를 "01", "05" 형식으로 통일
-  return {
-    h: String(hours).padStart(2, "0"),
-    m: String(minutes).padStart(2, "0"),
-    s: String(seconds).padStart(2, "0"),
-  };
+    // 반드시 두 자리 문자열로 반환하도록 보장
+    return {
+      h: String(h).padStart(2, '0'),
+      m: String(m).padStart(2, '0'),
+      s: String(s).padStart(2, '0')
+    };
+  } catch (e) {
+    console.error("transTime 에러:", e);
+    return { h: "00", m: "00", s: "00" };
+  }
 }
 
 
