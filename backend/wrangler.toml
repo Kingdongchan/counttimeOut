@@ -24,19 +24,6 @@ binding = "R2"                          # Workers 코드에서 env.R2로 접근
 bucket_name = "counttimeout-storage"
 # ⚠️ 필수 수정: wrangler r2 bucket create counttimeout-storage 실행 후 생성
 
-# --- Durable Objects 연결 (실시간 채팅 & 타이머 동기화) ---
-[[durable_objects.bindings]]
-name = "CHAT_ROOM"
-class_name = "ChatRoom"
-
-[[durable_objects.bindings]]
-name = "TIMER_SYNC"
-class_name = "TimerSync"
-
-# Durable Objects 마이그레이션 (처음 배포 시 반드시 실행)
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["ChatRoom", "TimerSync"]
 
 # --- 환경변수 (민감 정보는 .dev.vars에 따로 관리) ---
 [vars]
@@ -52,3 +39,7 @@ APP_ENV = "development"                       # 배포 시 "production"으로 �
 [dev]
 port = 8787
 local_protocol = "http"
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["ChatRoom", "TimerSync"]

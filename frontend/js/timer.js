@@ -145,11 +145,16 @@ async function initTimer() {
 
     if (!res.ok) throw new Error("타이머 데이터 로드 실패");
 
-    const data = await res.json();
+   let data = {today_accumulated_ms:0};
+   try { 
+        data = await res.json(); 
+      } catch (e) { 
+        // 에러가 나도 기본값 data를 유지함
+      }
 
     // DB에 저장된 누적 ms를 기준값으로 설정
     baseAccumulatedMs = data.today_accumulated_ms || 0;
-
+ 
     // 즉시 타이머 UI 업데이트
     const initialTime = transTime(baseAccumulatedMs);
     const hoursEl = document.getElementById("timer-hours");

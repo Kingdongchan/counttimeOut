@@ -291,7 +291,7 @@
 
           <!-- 라이브 경쟁자 수 -->
           <div class="glass p-6 rounded-2xl flex flex-col items-center gap-1">
-            <span class="text-slate-400 text-sm font-medium">라이브 경쟁자</span>
+            <span class="text-slate-400 text-sm font-medium">금일 경쟁자</span>
             <span id="live-count" class="text-2xl font-bold text-white">--</span>
           </div>
 
@@ -399,7 +399,7 @@
               onclick="switchLeaderboardTab('alltime')"
               class="px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors"
             >
-              역대
+              역대 기록
             </button>
           </div>
         </div>
@@ -460,7 +460,7 @@
               <span class="text-primary font-bold text-lg">02</span>
               <div>
                 <p class="font-bold text-white mb-1">하루 단위 경쟁</p>
-                <p>매일 자정(UTC+0)에 초기화됩니다. 전날 기록은 명예의 전당에 보존됩니다.</p>
+                <p>매일 자정(UTC+0)에 초기화됩니다. 전날 기록은 어제 기록에 보존됩니다.</p>
               </div>
             </div>
             <div class="flex gap-3">
@@ -473,8 +473,8 @@
             <div class="flex gap-3">
               <span class="text-primary font-bold text-lg">04</span>
               <div>
-                <p class="font-bold text-white mb-1">서버 기준 시간</p>
-                <p>로컬 시계 조작은 통하지 않습니다. 모든 기록은 서버 시간으로 검증됩니다.</p>
+                <p class="font-bold text-white mb-1">수익 기부</p>
+                <p>수익금의 50%는 기부됩니다. 플레이만으로 사회에 좋은 영향을 만들어보세요.</p>
               </div>
             </div>
           </div>
@@ -517,41 +517,43 @@
          푸터
          ============================================= -->
     <footer class="py-10 border-t border-glass-border text-center">
-      <div class="flex flex-col items-center gap-6">
-        <div class="flex items-center gap-6 text-sm font-medium text-slate-500">
-          <a href="#" class="hover:text-primary">소개</a>
-          <a href="#" class="hover:text-primary">개인정보처리방침</a>
-          <a href="#" class="hover:text-primary">이용약관</a>
-          <a href="#" class="hover:text-primary">API</a>
-        </div>
+  <div class="flex justify-center items-center gap-4">
 
-        <!-- 소셜 링크 -->
-        <div class="flex items-center gap-4">
-          <!-- 인스타그램 -->
-          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
-            <svg class="size-4 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.981 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"></path>
-            </svg>
-          </div>
-          <!-- X (트위터) -->
-          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
-            <svg class="size-4 fill-current" viewBox="0 0 24 24">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-            </svg>
-          </div>
-          <!-- 깃허브 -->
-          <div class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
-            <svg class="size-4 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
-            </svg>
-          </div>
-        </div>
+    <!-- 인스타 -->
+    <a href="https://www.instagram.com/" target="_blank"
+      class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+      <svg class="size-4 fill-current" viewBox="0 0 24 24">
+        <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm4.25 6.5A3.75 3.75 0 1 1 8.25 12 3.75 3.75 0 0 1 12 8.5zm4.5-.88a1.12 1.12 0 1 0 1.12 1.13 1.12 1.12 0 0 0-1.12-1.13z"/>
+      </svg>
+    </a>
 
-        <p class="text-xs text-slate-600 font-bold uppercase tracking-widest">
-          © 2024 CountTimeout. All Rights Reserved.
-        </p>
-      </div>
-    </footer>
+    <!-- X 공유 -->
+    <a href="https://twitter.com/intent/tweet?url=https://counttimeout.com&text=시간안에%20생존하는%20게임%20도전해보세요!"
+      target="_blank"
+      class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+      <svg class="size-4 fill-current" viewBox="0 0 24 24">
+        <path d="M18.244 2H21.5l-7.5 8.57L22 22h-6.8l-5.3-6.9L3.8 22H.5l8.1-9.26L1.2 2h6.9l4.8 6.3L18.244 2z"/>
+      </svg>
+    </a>
+
+    <!-- 카카오 공유 -->
+    <button onclick="shareKakao()"
+      class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+      K
+    </button>
+
+    <!-- 링크 복사 -->
+    <button onclick="copyLink()"
+      class="size-8 rounded-full glass flex items-center justify-center cursor-pointer hover:bg-primary transition-colors">
+      🔗
+    </button>
+
+  </div>
+
+  <p class="text-xs text-slate-600 font-bold uppercase tracking-widest mt-6">
+    © 2026 CountTimeout. All Rights Reserved.
+  </p>
+</footer>
 
   </div><!-- end .layout-container -->
 
@@ -732,7 +734,7 @@
   <script src="js/auth.js"></script>
   <script src="js/timer.js"></script>
   <script src="js/chat.js"></script>
-
+  <script src="js/leaderboard.js"></script>
   <script>
     // =============================================
     // 페이지 레벨 추가 로직
@@ -896,6 +898,12 @@
     document.addEventListener("auth-success", () => {
       loadLeaderboard();
     });
+
+    function copyLink() {
+      navigator.clipboard.writeText(window.location.href)
+      alert("링크가 복사되었습니다!")
+    }
+
   </script>
 </body>
 </html>
