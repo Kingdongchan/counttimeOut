@@ -101,6 +101,14 @@
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
     }
+
+    @keyframes highlight {
+      0% { background-color: rgba(242, 74, 13, 0.2); }
+      100% { background-color: transparent; }
+    }
+    .section-highlight {
+      animation: highlight 2s ease-out;
+    }
   </style>
 </head>
 
@@ -191,6 +199,29 @@
             규칙
           </a>
           <a href="#hall-of-fame" class="hover:text-primary transition-colors">후원하기</a>
+          <section id="hall-of-fame" class="mt-12 p-8 bg-navy-accent border border-glass-border rounded-2xl text-center shadow-2xl">
+              <h2 class="text-2xl font-bold mb-3 text-white flex justify-center items-center gap-2">
+                  <span class="text-primary">🎁</span> 기부 마라톤 명예의 전당
+              </h2>
+              <p class="text-gray-400 mb-8 text-sm md:text-base leading-relaxed">
+                  여러분의 기부금의 50%는 도움이 필요한 곳에 기부됩니다.<br>
+                  함께 세상을 따뜻하게 만드는 <span class="text-primary font-semibold">페이서</span>가 되어주세요!
+              </p>
+
+              <div class="flex flex-wrap justify-center gap-4">
+                  <a href="https://toss.me/동찬아이디" target="_blank" class="w-full sm:w-auto">
+                      <button class="w-full bg-[#0064ff] hover:bg-[#0051cf] text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
+                          🇰🇷 토스로 기부하기
+                      </button>
+                  </a>
+
+                  <a href="https://www.buymeacoffee.com/동찬아이디" target="_blank" class="w-full sm:w-auto">
+                      <button class="w-full bg-[#FFDD00] hover:bg-[#e6c700] text-black px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
+                          ☕ International Support
+                      </button>
+                  </a>
+              </div>
+          </section>
           <a href="#rewards" class="hover:text-primary transition-colors">후원 공지</a>
           <!-- 언어 전환 -->
           <div class="flex items-center gap-1.5 px-2 py-1 rounded-lg glass cursor-pointer hover:border-primary/50 transition-colors text-slate-300">
@@ -748,11 +779,12 @@
   <script src="js/leaderboard.js?v=301"></script>
   <script>
       // [핵심] 모든 JS에서 공통으로 사용할 API_BASE를 전역에 선언
-      API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
+    window.API_BASE = window.API_BASE || "https://counttimeout-backend.samesamechan0412.workers.dev";
+    window.API_BASE_PAGE = window.API_BASE;
     // =============================================
     // 페이지 레벨 추가 로직
     // =============================================
-
+    
     // --- 리더보드 로드 ---
     // ⚠️ 필수 수정: API_BASE를 실제 Workers URL로 교체
 
@@ -911,18 +943,20 @@
       loadLeaderboard();
     });
 
-    // 1. 링크 복사 함수 (copyLink)
     function copyLink() {
-      const url = window.location.href;
-      navigator.clipboard.writeText(url).then(function() {
-        alert("링크가 복사되었습니다! 친구에게 공유해보세요.");
-      }).catch(function(err) {
-        alert("복사 실패: " + err);
-      });
-    }
-
+        const currentUrl = window.location.href;
+        navigator.clipboard.writeText(currentUrl).then(() => {
+          alert("공유 링크가 클립보드에 복사되었습니다! 기부 마라톤에 함께해주세요! 🔗");
+        }).catch(() => {
+          // 구형 브라우저 대응
+          const t = document.createElement("textarea");
+          t.value = currentUrl; document.body.appendChild(t);
+          t.select(); document.execCommand('copy');
+          document.body.removeChild(t);
+          alert("링크가 복사되었습니다.");
+        });
+      }
     // 2. 카카오톡 공유 함수 (shareKakao)
-
       function shareKakao() {
           if (typeof Kakao === 'undefined') return;
 
@@ -941,7 +975,7 @@
             objectType: 'feed',
             content: {
               title: ` ${nickname}님의 생존 기록`,
-              description: `생존 시간: ${time}\n당신은 저보다 오래 버틸 수 있나요?`,
+              description: `당신의 생존 기록은 숫자가 아닌 희망이 됩니다. 단순히 버티는 것을 넘어, 참여만으로 누군가의 삶을 지키는 기부에 동참하세요. 당신의 도전을 기다립니다.`,
               imageUrl: myImageUrl, 
               link: {
                 mobileWebUrl: window.location.href,
@@ -949,10 +983,10 @@
               },
             },
             buttons: [{
-              title: '기록 도전하기',
+              title: '함꼐 도전하기',
               link: {
-                mobileWebUrl: window.location.href,
-                webUrl: window.location.href,
+                mobileWebUrl: 'https://counttimeout.pages.dev',
+                webUrl: 'https://counttimeout.pages.dev',
               },
             }],
           });
