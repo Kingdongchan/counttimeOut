@@ -922,37 +922,41 @@
     }
 
     // 2. 카카오톡 공유 함수 (shareKakao)
-    function shareKakao() {
-  if (!Kakao.isInitialized()) {
-    Kakao.init('378ed1f4d7ba499417a524ed175d129b'); 
-  }
 
-  const rank = document.getElementById("current-rank")?.textContent || "--";
-  const time = document.getElementById("timer-display")?.textContent || "00:00:00";
-  const nickname = JSON.parse(localStorage.getItem("userInfo") || "{}").nickname || "생존자";
+      function shareKakao() {
+          if (typeof Kakao === 'undefined') return;
 
-  Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      // 제목에 순위와 닉네임을 같이 넣어 가독성을 높였습니다.
-      title: `🔥 [${rank}] ${nickname}님의 생존 기록`,
-      description: `생존 시간: ${time}\n당신은 저보다 오래 버틸 수 있을까요?`,
-      // ⚠️ 중요: 파비콘 대신 최소 200x200 이상의 큰 이미지 경로를 넣으세요!
-      imageUrl: 'https://counttimeout.pages.dev/assets/img/og-image.png', 
-      link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
-      },
-    },
-    buttons: [{
-      title: '기록 도전하기',
-      link: {
-        mobileWebUrl: window.location.href,
-        webUrl: window.location.href,
-      },
-    }],
-  });
-}
+          if (!Kakao.isInitialized()) {
+            Kakao.init('378ed1f4d7ba499417a524ed175d129b'); 
+          }
+
+          const rank = document.getElementById("current-rank")?.textContent || "--위";
+          const time = document.getElementById("timer-display")?.textContent || "00:00:00";
+          const nickname = JSON.parse(localStorage.getItem("userInfo") || "{}").nickname || "생존자";
+
+          // window.location.origin을 써서 주소를 유연하게 만듭니다.
+          const myImageUrl = window.location.origin + '/og-image.png';
+
+          Kakao.Share.sendDefault({
+            objectType: 'feed',
+            content: {
+              title: ` ${nickname}님의 생존 기록`,
+              description: `생존 시간: ${time}\n당신은 저보다 오래 버틸 수 있나요?`,
+              imageUrl: myImageUrl, 
+              link: {
+                mobileWebUrl: window.location.href,
+                webUrl: window.location.href,
+              },
+            },
+            buttons: [{
+              title: '기록 도전하기',
+              link: {
+                mobileWebUrl: window.location.href,
+                webUrl: window.location.href,
+              },
+            }],
+          });
+        }
   </script>
 </body>
 </html>
