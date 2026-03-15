@@ -33,6 +33,10 @@
     rel="stylesheet"
   />
 
+  
+  
+  
+
   <!-- Tailwind 커스텀 설정 -->
   <script id="tailwind-config">
     tailwind.config = {
@@ -736,18 +740,21 @@
        3. chat.js: 채팅 (auth 성공 후 initChat 호출)
        마지막: 인라인 스크립트 (리더보드 등 페이지별 추가 로직)
        ============================================= -->
+  <!-- 카카오 SDK -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/timer.js"></script>
   <script src="js/chat.js"></script>
-  <script src="js/leaderboard.js?v=1.1"></script>
+  <script src="js/leaderboard.js?v=301"></script>
   <script>
+      // [핵심] 모든 JS에서 공통으로 사용할 API_BASE를 전역에 선언
+      API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
     // =============================================
     // 페이지 레벨 추가 로직
     // =============================================
 
     // --- 리더보드 로드 ---
     // ⚠️ 필수 수정: API_BASE를 실제 Workers URL로 교체
-    const API_BASE_PAGE = "https://counttimeout-backend.samesamechan0412.workers.dev";
 
     async function loadLeaderboard(mode = "live") {
       const tbody = document.getElementById("leaderboard-body");
@@ -904,11 +911,48 @@
       loadLeaderboard();
     });
 
+    // 1. 링크 복사 함수 (copyLink)
     function copyLink() {
-      navigator.clipboard.writeText(window.location.href)
-      alert("링크가 복사되었습니다!")
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(function() {
+        alert("링크가 복사되었습니다! 친구에게 공유해보세요.");
+      }).catch(function(err) {
+        alert("복사 실패: " + err);
+      });
     }
 
+    // 2. 카카오톡 공유 함수 (shareKakao)
+    function shareKakao() {
+  if (!Kakao.isInitialized()) {
+    Kakao.init('378ed1f4d7ba499417a524ed175d129b'); 
+  }
+
+  const rank = document.getElementById("current-rank")?.textContent || "--";
+  const time = document.getElementById("timer-display")?.textContent || "00:00:00";
+  const nickname = JSON.parse(localStorage.getItem("userInfo") || "{}").nickname || "생존자";
+
+  Kakao.Share.sendDefault({
+    objectType: 'feed',
+    content: {
+      // 제목에 순위와 닉네임을 같이 넣어 가독성을 높였습니다.
+      title: `🔥 [${rank}] ${nickname}님의 생존 기록`,
+      description: `생존 시간: ${time}\n당신은 저보다 오래 버틸 수 있을까요?`,
+      // ⚠️ 중요: 파비콘 대신 최소 200x200 이상의 큰 이미지 경로를 넣으세요!
+      imageUrl: 'https://counttimeout.pages.dev/assets/img/og-image.png', 
+      link: {
+        mobileWebUrl: window.location.href,
+        webUrl: window.location.href,
+      },
+    },
+    buttons: [{
+      title: '기록 도전하기',
+      link: {
+        mobileWebUrl: window.location.href,
+        webUrl: window.location.href,
+      },
+    }],
+  });
+}
   </script>
 </body>
 </html>
