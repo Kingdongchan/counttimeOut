@@ -341,23 +341,34 @@ function checkNicknameDuplicate(type) {
 // =============================================
 async function signOut() {
   const sessionToken = localStorage.getItem("sessionToken");
+  
+  // 1. 타이머 중단
   if (typeof stopTimer === "function") await stopTimer();
+  
+  // 2. 서버에 로그아웃 알림
   if (sessionToken) {
     try {
       await fetch(`${API_BASE}/api/auth/logout`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${sessionToken}` },
       });
-    } catch {}
+    } catch (e) {
+      console.error("Logout API 에러:", e);
+    }
   }
-  clearSession();
-  closeModal("profile-modal");
-  showLoginUI();
-  if (typeof google !== "undefined") google.accounts.id.disableAutoSelect();
-  const chatInput = document.getElementById("chat-input");
-  const chatSendBtn = document.getElementById("chat-send-btn");
-  if (chatInput) { chatInput.disabled = true; chatInput.placeholder = "채팅하려면 로그인하세요"; }
-  if (chatSendBtn) chatSendBtn.disabled = true;
+
+  // 3. 로컬 데이터 삭제 
+  localStorage.removeItem("sessionToken");
+  localStorage.removeItem("userInfo");
+  localStorage.removeItem("accessToken");
+
+  // 4. 관리자 버튼 즉시 숨기기 
+  if (typeof updateAdminVisibility === "function") {
+    updateAdminVisibility();
+  }
+
+  // 5. 페이지 새로고침하여 상태 초기화
+  location.reload();
 }
 const sighOut = signOut;
 

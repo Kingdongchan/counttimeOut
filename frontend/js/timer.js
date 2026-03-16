@@ -31,23 +31,26 @@ const DB_SYNC_INTERVAL = 30000; // 30초마다 DB에 기록 저장
 // =============================================
 function transTime(ms) {
   try {
-    // 숫자가 아니거나 음수일 경우 대비
-    const totalSeconds = Math.floor(Number(ms || 0) / 1000);
-    
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
+        let totalSeconds = Math.floor(Number(ms || 0) / 1000);
+        
+        // [추가된 방어막] 계산 결과가 숫자가 아니면 0으로 강제 고정
+        if (isNaN(totalSeconds)) {
+            totalSeconds = 0;
+        }
+        
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
 
-    // 반드시 두 자리 문자열로 반환하도록 보장
-    return {
-      h: String(h).padStart(2, '0'),
-      m: String(m).padStart(2, '0'),
-      s: String(s).padStart(2, '0')
-    };
-  } catch (e) {
-    console.error("transTime 에러:", e);
-    return { h: "00", m: "00", s: "00" };
-  }
+        return {
+          h: String(h).padStart(2, '0'),
+          m: String(m).padStart(2, '0'),
+          s: String(s).padStart(2, '0')
+        };
+    } catch (e) {
+        console.error("transTime 에러:", e);
+        return { h: "00", m: "00", s: "00" };
+    }
 }
 
 

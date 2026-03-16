@@ -806,9 +806,8 @@
   <script src="js/leaderboard.js?v=301"></script>
   <script src="js/language.js"></script> <!-- Added language.js -->
   <script>
-      // [핵심] 모든 JS에서 공통으로 사용할 API_BASE를 전역에 선언
-    window.API_BASE = window.API_BASE || "https://counttimeout-backend.samesamechan0412.workers.dev";
-    window.API_BASE_PAGE = window.API_BASE;
+      window.API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
+      window.API_BASE_PAGE = window.API_BASE;
     // =============================================
     // 페이지 레벨 추가 로직
     // =============================================
@@ -920,6 +919,8 @@
           `;
         }).join("");
 
+        window.totalMs = window.totalMs || 0;
+        
         // 현재 내 순위 업데이트
         const myEntry = list.find(e => e.user_id === myInfo.id);
         if (myEntry) {
