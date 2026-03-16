@@ -616,7 +616,7 @@
                   토스로 기부하기 (QR)
               </button>
 
-          <a href="https://www.buymeacoffee.com/동찬아이디" target="_blank" class="w-full sm:w-auto">
+          <a href="https://ko-fi.com/samesamechan" target="_blank" class="w-full sm:w-auto">
               <button class="w-full bg-[#FFDD00] hover:bg-[#e6c700] text-black px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
                   ☕ International Support
               </button>
@@ -624,7 +624,20 @@
       </div>
     </div>
   </div>
-
+  <div 
+    id="toss-qr-modal"
+    class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4" 
+    onclick="if(event.target.id === 'toss-qr-modal') closeModal('toss-qr-modal')" 
+    >
+    <div class="relative">  
+    <button
+      onclick="closeModal('toss-qr-modal')"
+      class="absolute -top-4 -right-4 bg-white rounded-full p-1 z-10">
+        <span class="material-symbols-outlined text-black">close</span>   
+    </button>
+    <img src="image/toss_qr.png" alt="Toss QR Code" class="rounded-2xl max-w-xs md:max-w-sm">                                                 
+    </div>
+  </div>
   <!-- =============================================
        모달 1: 닉네임 최초 설정
        조건: 구글 로그인 후 nickname === null 인 경우
@@ -705,7 +718,7 @@
     id="profile-modal"
     class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm items-center justify-center p-4"
     onclick="if(event.target===this) closeModal('profile-modal')"
-  >
+  >ㅌ
     <div class="glass rounded-2xl w-full max-w-md p-8 flex flex-col gap-6 border border-glass-border relative">
 
       <!-- 닫기 버튼 -->
