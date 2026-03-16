@@ -856,16 +856,25 @@
 
     // --- 페이지 로드 시 리더보드 초기화 ---
     document.addEventListener("DOMContentLoaded", () => {
-      // 초기 리더보드 로드
-      loadLeaderboard();
-
-      // 30초마다 리더보드 자동 갱신
-      setInterval(loadLeaderboard, 30000);
+      if (typeof switchLeaderboardTab === 'function') {
+        switchLeaderboardTab('live');
+      }
+      // 2. 30초마다 리더보드 자동 갱신 
+      setInterval(() => {
+        if (typeof switchLeaderboardTab === 'function') {
+          switchLeaderboardTab('live');
+        }
+      }, 30000);
     });
 
     // --- auth-success 이벤트: 로그인 후 리더보드 즉시 갱신 ---
     document.addEventListener("auth-success", () => {
-      loadLeaderboard();
+      // 로그인 성공 시 실시간 리더보드 로드
+      if (typeof switchLeaderboardTab === 'function') {
+        switchLeaderboardTab('live');
+      } else {
+        console.error("🚨 리더보드 함수(switchLeaderboardTab)를 찾을 수 없습니다.");
+      }
     });
 
     function copyLink() {
