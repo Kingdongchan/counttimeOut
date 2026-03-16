@@ -29,29 +29,40 @@ const DB_SYNC_INTERVAL = 30000; // 30초마다 DB에 기록 저장
 // 목적: 밀리초 → { h, m, s } 객체 변환
 // 반환: 항상 두 자리 패딩된 문자열 객체
 // =============================================
-function transTime(ms) {
-  try {
-        let totalSeconds = Math.floor(Number(ms || 0) / 1000);
+window.transTime = function(ms) {
+    try {
+        // 1. [철저한 정제] 숫자, 소수점 외의 모든 문자(n 등)를 제거하고 숫자로 변환
+        // 입력값이 undefined나 null이어도 0으로 처리됩니다.
+        let cleanVal = String(ms || 0).replace(/[^0-9.-]/g, ''); 
+        let safeMs = Math.floor(Number(cleanVal)) || 0;
+
+        // 2. 음수 방지
+        if (safeMs < 0) safeMs = 0;
+
+        // 3. 시간 계산 (밀리초 -> 초)
+        const totalSeconds = Math.floor(safeMs / 1000);
         
-        // [추가된 방어막] 계산 결과가 숫자가 아니면 0으로 강제 고정
-        if (isNaN(totalSeconds)) {
-            totalSeconds = 0;
-        }
-        
+        // 4. 시, 분, 초 추출
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
         const s = totalSeconds % 60;
 
+        // 5. [중요] 계산 결과가 NaN일 경우를 대비해 마지막 방어막
+        const finalH = isNaN(h) ? "00" : String(h).padStart(2, '0');
+        const finalM = isNaN(m) ? "00" : String(m).padStart(2, '0');
+        const finalS = isNaN(s) ? "00" : String(s).padStart(2, '0');
+
         return {
-          h: String(h).padStart(2, '0'),
-          m: String(m).padStart(2, '0'),
-          s: String(s).padStart(2, '0')
+            h: finalH,
+            m: finalM,
+            s: finalS
         };
     } catch (e) {
-        console.error("transTime 에러:", e);
+        // 예상치 못한 에러 발생 시
+        console.error("🚨 [transTime] 치명적 계산 오류:", e);
         return { h: "00", m: "00", s: "00" };
     }
-}
+};
 
 
 // =============================================

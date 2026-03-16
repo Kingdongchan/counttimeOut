@@ -611,11 +611,10 @@
       </p>
 
       <div class="flex flex-wrap justify-center gap-4">
-          <a href="https://toss.me/동찬아이디" target="_blank" class="w-full sm:w-auto">
-              <button class="w-full bg-[#0064ff] hover:bg-[#0051cf] text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
-                  🇰🇷 토스로 기부하기
+              <button onclick="openModal('toss-qr-modal')" class="w-full sm:w-auto bg-[#0064ff] hover:bg-[#0051cf] text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
+                  <span class="material-symbols-outlined text-lg">qr_code_2</span>
+                  토스로 기부하기 (QR)
               </button>
-          </a>
 
           <a href="https://www.buymeacoffee.com/동찬아이디" target="_blank" class="w-full sm:w-auto">
               <button class="w-full bg-[#FFDD00] hover:bg-[#e6c700] text-black px-6 py-3 rounded-xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg">
@@ -829,139 +828,6 @@
       }
     }
     
-    // --- 리더보드 로드 ---
-    // ⚠️ 필수 수정: API_BASE를 실제 Workers URL로 교체
-
-    async function loadLeaderboard(mode = "live") {
-      const tbody = document.getElementById("leaderboard-body");
-      if (!tbody) return;
-
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
-            순위를 불러오는 중...
-          </td>
-        </tr>
-      `;
-
-      try {
-        const res = await fetch(`${API_BASE_PAGE}/api/leaderboard`);
-        const data = await res.json();
-        const list = data.leaderboard || [];
-
-        if (list.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
-                아직 기록이 없습니다. 첫 번째 생존자가 되어보세요!
-              </td>
-            </tr>
-          `;
-          return;
-        }
-
-        // 현재 로그인 유저 ID (본인 행 강조)
-        const myInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
-
-        tbody.innerHTML = list.map((entry, i) => {
-          const rank = i + 1;
-          const isMe = entry.user_id === myInfo.id;
-          const totalMs = entry.today_accumulated_ms;
-          const h = String(Math.floor(totalMs / 3600000)).padStart(2, "0");
-          const m = String(Math.floor((totalMs % 3600000) / 60000)).padStart(2, "0");
-          const s = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, "0");
-
-          // 1위 특별 스타일
-          const isFirst = rank === 1;
-          const rowClass = isMe
-            ? "bg-primary/10 hover:bg-primary/20"
-            : isFirst
-              ? "bg-primary/5 hover:bg-primary/10"
-              : "hover:bg-white/5";
-
-          return `
-            <tr class="${rowClass} transition-colors group">
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
-                  <span class="text-xl font-bold ${isFirst ? "text-primary" : "text-slate-400"} italic">
-                    ${String(rank).padStart(2, "0")}
-                  </span>
-                  ${isFirst ? '<span class="material-symbols-outlined text-yellow-500 text-lg">workspace_premium</span>' : ""}
-                  ${isMe ? '<span class="text-xs text-primary font-bold">나</span>' : ""}
-                </div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-3">
-                  <div class="size-9 rounded-full border ${isFirst ? "border-primary" : "border-glass-border"} overflow-hidden">
-                    <img
-                      src="${entry.picture || "assets/img/guest-avatar.png"}"
-                      alt="${entry.nickname}"
-                      class="w-full h-full object-cover"
-                      onerror="this.src='assets/img/guest-avatar.png'"
-                    />
-                  </div>
-                  <span class="font-bold text-white group-hover:text-primary transition-colors">
-                    ${entry.nickname}
-                  </span>
-                </div>
-              </td>
-              <td class="px-6 py-4">
-                <div class="flex justify-center">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-500 border border-green-500/30 uppercase tracking-tighter">
-                    접속 중
-                  </span>
-                </div>
-              </td>
-              <td class="px-6 py-4 text-right">
-                <span class="text-lg font-mono font-bold text-white tracking-tight">${h}:${m}:${s}</span>
-              </td>
-            </tr>
-          `;
-        }).join("");
-
-        window.totalMs = window.totalMs || 0;
-        
-        // 현재 내 순위 업데이트
-        const myEntry = list.find(e => e.user_id === myInfo.id);
-        if (myEntry) {
-          const myRank = list.indexOf(myEntry) + 1;
-          const rankEl = document.getElementById("current-rank");
-          const pctEl = document.getElementById("rank-percentage");
-          if (rankEl) rankEl.textContent = `#${myRank}`;
-          if (pctEl) pctEl.textContent = `상위 ${Math.ceil(myRank / list.length * 100)}%`;
-        }
-
-        // 라이브 인원 업데이트
-        const countEl = document.getElementById("live-count");
-        if (countEl) countEl.textContent = list.length.toLocaleString();
-
-      } catch (err) {
-        console.error("[리더보드] 로드 실패:", err);
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="4" class="px-6 py-8 text-center text-slate-500 text-sm">
-              리더보드를 불러올 수 없습니다. 서버 연결을 확인해주세요.
-            </td>
-          </tr>
-        `;
-      }
-    }
-
-    // --- 리더보드 탭 전환 ---
-    function switchLeaderboardTab(mode) {
-      const liveBtn = document.getElementById("tab-live");
-      const alltimeBtn = document.getElementById("tab-alltime");
-
-      if (mode === "live") {
-        liveBtn.className = "bg-primary text-white px-4 py-1.5 rounded-md text-xs font-bold";
-        alltimeBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors";
-      } else {
-        alltimeBtn.className = "bg-primary text-white px-4 py-1.5 rounded-md text-xs font-bold";
-        liveBtn.className = "px-4 py-1.5 rounded-md text-xs font-bold text-slate-400 hover:text-white transition-colors";
-      }
-      loadLeaderboard(mode);
-    }
-
     // --- 관리자 강제 종료 UI ---
     function showForceStopUI() {
       const targetId = prompt("강제 종료할 유저 ID를 입력하세요:");
