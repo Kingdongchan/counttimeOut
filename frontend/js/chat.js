@@ -1,44 +1,73 @@
-// =============================================
-// frontend/js/chat.js
-// 역할: 실시간 채팅 관리 (Polling 방식), 메시지 렌더링, 스팸 차단
-// =============================================
+/**
+ * chat.js 
+ * - 기능: 실시간 채팅 수신/발신, 도배 방지, 시간 표시 최적화
+ * - 특이사항: DB의 UTC timestamp를 한국 시간(KST)으로 변환하여 항상 노출
+ */
 
-let lastSendTime = 0;           
-let lastMessage = "";           
-const MAX_MESSAGES = 100;       
-let lastChatHash = "";          
+let lastSendTime = 0;           // 마지막 전송 시간 (도배 방지용)
+let lastMessage = "";           // 마지막 전송 메시지 (중복 방지용)
+const MAX_MESSAGES = 50;        // 화면에 표시할 최대 메시지 수
+let lastChatHash = "";          // 이전 데이터와 비교하여 깜빡임 방지 (UX 개선)
+let chatInterval = null;        // 폴링 인터벌 관리 변수
+let isFetchingChat = false;     // 데이터 중복 호출 방지 플래그
 
-// [메시지 HTML 생성]
+// [1. 메시지 HTML 생성 함수]
 function createChatHtml(messageData) {
   const { nickname, message, liveTime, isYesterdayKing, created_at } = messageData;
-
+  
+  // 생존 시간에 따른 배지 결정
   const liveMs = parseLiveTimeToMs(liveTime);
   let badge = "";
   if (isYesterdayKing) {
-    badge = '<span class="text-yellow-400 text-xs">🥇</span>';
-  } else if (liveMs >= 10 * 60 * 60 * 1000) {
-    badge = '<span class="text-xs">🔥</span>';
+    badge = '<span class="text-yellow-400 text-xs" title="어제의 왕">🥇</span>';
+  } else if (liveMs >= 10 * 60 * 60 * 1000) { 
+    badge = '<span class="text-xs" title="10시간 돌파">🔥</span>';
   }
 
-  const timeStr = created_at
-    ? new Date(created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
-    : new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  // [시간 파싱 로직 강화: 한국 시간(KST) 적용 및 상시 노출] 
+  let timeStr = "";
+  try {
+    if (created_at) {
+      // 1. DB 문자열 "2026-03-18 12:00:00" -> ISO "2026-03-18T12:00:00Z" 변환 (UTC 명시)
+      const dateStr = created_at.includes("T") ? created_at : created_at.replace(" ", "T") + "Z";
+      const dateObj = new Date(dateStr);
+      
+      if (!isNaN(dateObj)) {
+        // 2. 브라우저 설정을 따라 한국 시간으로 변환 (오전/오후 포함)
+        timeStr = dateObj.toLocaleTimeString("ko-KR", { 
+          hour: "2-digit", 
+          minute: "2-digit",
+          hour12: true 
+        });
+      }
+    }
+  } catch (e) {
+    console.error("시간 변환 오류:", e);
+  }
+
+  // 시간이 없거나 오류 시 현재 시간으로 대체
+  if (!timeStr) {
+    timeStr = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: true });
+  }
 
   return `
-    <div class="flex flex-col gap-1 animate-fade-in mb-3">
+    <div class="flex flex-col gap-1 animate-fade-in mb-4 group">
       <div class="flex items-center gap-2">
-        <span class="text-xs font-bold text-primary">${escapeHtml(nickname)}</span>
+        <span class="text-[11px] font-bold text-blue-400">${escapeHtml(nickname)}</span>
         ${badge}
-        <span class="text-[10px] text-slate-500">${timeStr}</span>
+        <span class="text-[10px] text-slate-500 font-medium">${timeStr}</span>
       </div>
-      <p class="text-sm text-slate-300 glass border-none bg-white/5 py-2 px-3 rounded-lg rounded-tl-none inline-block max-w-[80%]">
-        ${escapeHtml(message)}
-      </p>
+      <div class="relative inline-block max-w-[85%]">
+        <p class="text-sm text-slate-200 bg-white/10 backdrop-blur-md py-2 px-3 rounded-2xl rounded-tl-none border border-white/5 shadow-sm">
+          ${escapeHtml(message)}
+        </p>
+        ${liveTime ? `<span class="absolute -right-12 bottom-1 text-[9px] text-orange-500/80 font-mono font-bold">${liveTime}</span>` : ''}
+      </div>
     </div>
   `;
 }
 
-// [메시지 전송]
+// [2. 메시지 전송 함수]
 async function sendChat() {
   const input = document.getElementById("chat-input");
   if (!input) return;
@@ -49,22 +78,24 @@ async function sendChat() {
 
   if (!message) return;
   if (!sessionToken) {
-    showChatAlert("채팅을 이용하려면 로그인이 필요합니다.");
+    showChatAlert("로그인이 필요한 서비스입니다.");
     return;
   }
 
+  // 도배 방지 체크
   if (!checkSpamChat(message)) return;
 
+  // 메인 타이머에서 현재 생존 시간 가져오기
   const totalMs = typeof getCurrentTotalMs === "function" ? getCurrentTotalMs() : 0;
   const { h, m, s } = typeof transTime === "function" ? transTime(totalMs) : { h: "00", m: "00", s: "00" };
-  const liveTime = `${h}:${m}:${s}`;
+  const liveTimeStr = `${h}:${m}:${s}`;
 
-  input.value = "";
+  input.value = ""; 
   lastMessage = message;
   lastSendTime = Date.now();
 
   try {
-    await fetch(`${API_BASE}/api/chat/send`, {
+    const res = await fetch(`${API_BASE}/api/chat/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -72,98 +103,104 @@ async function sendChat() {
       },
       body: JSON.stringify({
         message,
-        liveTime,
-        nickname: userInfo.nickname || "익명",
+        liveTime: liveTimeStr,
+        nickname: userInfo.nickname || userInfo.name || "익명",
       }),
     });
 
-    await fetchChatHistory();
+    if (res.ok) {
+      await fetchChatHistory(); // 전송 즉시 갱신
+    }
   } catch (err) {
     console.error("[채팅] 전송 실패:", err);
-    showChatAlert("메시지 전송에 실패했습니다.");
+    showChatAlert("서버 연결에 실패했습니다.");
   }
 }
 
-// [채팅 기록 로드 - 순서 교정 포함]
+// [3. 채팅 기록 로드 및 화면 갱신]
 async function fetchChatHistory() {
   const chatContainer = document.getElementById("chat-messages");
-  if (!chatContainer) return;
+  if (!chatContainer || isFetchingChat) return; 
+
+  isFetchingChat = true;
 
   try {
     const res = await fetch(`${API_BASE}/api/chat/history`);
-    if (!res.ok) return;
+    if (!res.ok) throw new Error("데이터를 가져올 수 없습니다.");
 
-    const { messages } = await res.json();
+    const data = await res.json();
+    const messages = data.messages || [];
     
+    // [중요] 데이터가 이전과 동일하면 DOM 업데이트를 건너뜀 (깜빡임 방지)
     const currentHash = JSON.stringify(messages);
     if (lastChatHash === currentHash) return;
     lastChatHash = currentHash;
 
-    // 현재 스크롤이 바닥 근처인지 확인
-    const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 150;
+    // 현재 스크롤 위치 확인
+    const isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
 
-    // [핵심 수정] 서버에서 온 최신순 배열을 뒤집어서 옛날 메시지가 위로 가게 함
-    const sortedMessages = [...messages].reverse(); 
-    const fullHtml = sortedMessages.map(msg => createChatHtml(msg)).join('');
-    
+    // HTML 생성
+    const fullHtml = messages.map(msg => createChatHtml(msg)).join('');
     chatContainer.innerHTML = fullHtml;
 
-    // 새 메시지가 왔을 때 바닥에 있었다면 스크롤 유지
-    if (isAtBottom) {
-      scrollConfirm(chatContainer, true);
+    // 바닥 근처였을 때만 자동 스크롤 하단 이동
+    if (isAtBottom || chatContainer.innerHTML.length < 500) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   } catch (err) {
-    console.warn("[채팅] 기록 로드 실패:", err);
+    console.warn("[채팅] 기록 로드 중 오류:", err);
+  } finally {
+    isFetchingChat = false; 
   }
 }
 
-// [초기화]
+// [4. 채팅 초기화 및 이벤트 바인딩]
 function initChat() {
   const sendBtn = document.getElementById("chat-send-btn");
   const chatInput = document.getElementById("chat-input");
 
-  if (sendBtn) {
-    sendBtn.addEventListener("click", sendChat);
-  }
-
+  if (sendBtn) sendBtn.onclick = sendChat;
   if (chatInput) {
-    chatInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendChat();
-    });
+    chatInput.onkeypress = (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    };
   }
 
-  fetchChatHistory();
-  setInterval(fetchChatHistory, 3000);
+  // 중복 인터벌 방지
+  if (chatInterval) clearInterval(chatInterval);
 
-  document.addEventListener("midnight-reset", () => {
-    const chatContainer = document.getElementById("chat-messages");
-    if (chatContainer) {
-      chatContainer.innerHTML = '<div class="text-center text-xs text-slate-500 py-4">🌅 새로운 하루가 시작되었습니다!</div>';
-      lastChatHash = "";
-    }
-  });
-}
+  fetchChatHistory(); 
+  chatInterval = setInterval(fetchChatHistory, 4000); // 4초 주기 갱신
 
-// [유틸리티]
-function scrollConfirm(container, force = false) {
-  if (!container) return;
-  if (force) {
-    container.scrollTop = container.scrollHeight;
+  // 자정 리셋 시 채팅창 비우기
+  if (!window.isMidnightEventRegistered) {
+      document.addEventListener("midnight-reset", () => {
+        const chatContainer = document.getElementById("chat-messages");
+        if (chatContainer) {
+          chatContainer.innerHTML = '<div class="text-center text-[10px] text-slate-500 py-6 italic opacity-50">🌅 새로운 하루가 시작되었습니다.</div>';
+          lastChatHash = ""; 
+        }
+      });
+      window.isMidnightEventRegistered = true;
   }
 }
 
+// [5. 유틸리티 함수]
 function checkSpamChat(message) {
   const now = Date.now();
-  if (now - lastSendTime < 2000) {
-    showChatAlert("2초 후에 다시 보내주세요.");
+  if (now - lastSendTime < 1500) { 
+    showChatAlert("메시지를 너무 빨리 보낼 수 없습니다.");
     return false;
   }
-  if (message === lastMessage) {
+  if (message === lastMessage && (now - lastSendTime < 10000)) { 
     showChatAlert("중복된 메시지입니다.");
     return false;
   }
-  if (message.length < 1 || message.length > 200) {
-    showChatAlert("1자 이상 200자 이하로 입력해주세요.");
+  if (message.length > 150) {
+    showChatAlert("글자 수를 줄여주세요. (최대 150자)");
     return false;
   }
   return true;
@@ -171,15 +208,15 @@ function checkSpamChat(message) {
 
 function escapeHtml(text) {
   if (!text) return "";
-  const div = document.createElement("div");
-  div.appendChild(document.createTextNode(text));
-  return div.innerHTML;
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 function parseLiveTimeToMs(liveTime) {
-  if (!liveTime) return 0;
+  if (!liveTime || typeof liveTime !== 'string') return 0;
   const parts = liveTime.split(":").map(Number);
-  return parts.length === 3 ? (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000 : 0;
+  if (parts.length === 3) return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+  return 0;
 }
 
 function showChatAlert(message) {
@@ -187,10 +224,11 @@ function showChatAlert(message) {
   if (alertEl) {
     alertEl.textContent = message;
     alertEl.classList.remove("hidden");
-    setTimeout(() => alertEl.classList.add("hidden"), 3000);
+    setTimeout(() => alertEl.classList.add("hidden"), 2500);
   } else {
-    alert(message);
+    console.log("Chat Alert:", message);
   }
 }
 
+// 초기화 실행
 document.addEventListener("DOMContentLoaded", initChat);
