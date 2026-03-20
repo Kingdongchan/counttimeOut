@@ -52,8 +52,11 @@ CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
 -- ⚠️ 중요: 매일 자정(서버 기준)에 history_record로 이동 후 초기화
 -- =============================================
 CREATE TABLE IF NOT EXISTS daily_record (
-    -- users 테이블의 id와 1:1 매핑 (하루에 유저당 1행만 존재)
-    user_id                 TEXT PRIMARY KEY,
+    -- 기록 날짜 (YYYY-MM-DD 형식)
+    date                    TEXT NOT NULL,
+
+    -- users 테이블의 id
+    user_id                 TEXT NOT NULL,
 
     -- 화면에 표시할 닉네임 (구글 이름과 동기화)
     nickname                TEXT NOT NULL,
@@ -73,6 +76,9 @@ CREATE TABLE IF NOT EXISTS daily_record (
     -- 마지막 업데이트 시각 (데이터 무결성 확인용)
     updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
 
+    -- 복합 기본 키: 날짜 + 유저 조합으로 하루 1건 보장
+    PRIMARY KEY (date, user_id),
+
     -- 외래 키: users 테이블 연결
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -85,20 +91,17 @@ CREATE TABLE IF NOT EXISTS daily_record (
 -- 용도: 명예의 전당, 어제의 1위(🥇) 배지, 전적 조회
 -- =============================================
 CREATE TABLE IF NOT EXISTS history_record (
-    -- 기록된 날짜 (YYYY-MM-DD 형식, 서버 UTC 기준)
-    record_date TEXT NOT NULL,
+    -- 기록된 날짜 (YYYY-MM-DD 형식)
+    date        TEXT NOT NULL,
 
     -- 해당 유저의 ID
     user_id     TEXT NOT NULL,
 
     -- 해당 날의 최종 생존 시간 (밀리초)
-    final_ms    INTEGER NOT NULL DEFAULT 0,
-
-    -- 해당 날 최종 순위
-    final_rank  INTEGER,
+    count       INTEGER NOT NULL DEFAULT 0,
 
     -- 복합 기본 키: 날짜 + 유저 조합으로 하루 1건 보장
-    PRIMARY KEY (record_date, user_id),
+    PRIMARY KEY (date, user_id),
 
     -- 외래 키: users 테이블 연결
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -172,11 +175,11 @@ CREATE INDEX IF NOT EXISTS idx_chat_logs_created_at
 
 -- history_record: 날짜별 랭킹 조회 빠르게 (명예의 전당)
 CREATE INDEX IF NOT EXISTS idx_history_record_date
-    ON history_record(record_date);
+    ON history_record(date);
 
 -- history_record: 생존 시간 순 정렬 빠르게 (랭킹 산출)
-CREATE INDEX IF NOT EXISTS idx_history_final_ms
-    ON history_record(final_ms DESC);
+CREATE INDEX IF NOT EXISTS idx_history_count
+    ON history_record(count DESC);
 
 -- daily_record: 실시간 리더보드 정렬 빠르게
 CREATE INDEX IF NOT EXISTS idx_daily_accumulated_ms

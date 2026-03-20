@@ -129,7 +129,7 @@ const translations = {
         'nickname_rule3': 'Can be changed once every 24 hours after setting',
         'nickname_set_button': 'Start',
         // Modal 2 (Profile/Nickname Change)
-        'profile_modal_nickname_change_title': 'Change Nickname',
+            'profile_modal_nickname_change_title': 'Change Nickname',
         'profile_modal_cooldown_message': 'Can change after {hours} hours {minutes} minutes.', // Placeholder for dynamic values
         'profile_modal_new_nickname_placeholder': 'New Nickname (2-12 chars)',
         'profile_modal_change_button': 'Change',
