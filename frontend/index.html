@@ -201,10 +201,7 @@
           </a>
           <a href="#" onclick="openModal('hall-of-fame-overlay')" data-i18n-key="donate_link" class="hover:text-primary transition-colors">후원하기</a>
           <a href="#rewards" data-i18n-key="rewards_link" class="hover:text-primary transition-colors">후원 공지</a>
-          <a href="https://daily-mystery.pages.dev/" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            class="hover:text-primary transition-colors">
+          <a href="#" id="minigame-trigger" class="hover:text-primary transition-colors">
             미니 게임
           </a>
           <!-- 언어 전환 -->
@@ -824,6 +821,7 @@
   <script src="js/chat.js"></script>
   <script src="js/leaderboard.js?v=301"></script>
   <script src="js/language.js"></script> <!-- Added language.js -->
+  <script src="js/minigame.js"></script>
   <script>
       window.API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
       window.API_BASE_PAGE = window.API_BASE;
@@ -863,6 +861,16 @@
 
     // --- 페이지 로드 시 리더보드 초기화 ---
     document.addEventListener("DOMContentLoaded", () => {
+      const minigameTrigger = document.getElementById('minigame-trigger');
+      if (minigameTrigger) {
+          minigameTrigger.addEventListener('click', function(event) {
+              event.preventDefault();
+              if (window.openMiniGameOverlay) {
+                  window.openMiniGameOverlay();
+              }
+          });
+      }
+
       if (typeof switchLeaderboardTab === 'function') {
         switchLeaderboardTab('live');
       }

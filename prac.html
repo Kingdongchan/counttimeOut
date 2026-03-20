@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#f24a0d",
+              "on-tertiary-fixed": "#064e3b",
+              "on-tertiary": "#ffffff",
+              "surface-container-lowest": "#050810",
+              "surface": "#0a0f1d",
+              "secondary": "#1a243d",
+              "error": "#ef4444",
+              "error-container": "rgba(239, 68, 68, 0.1)",
+              "surface-bright": "#1a243d",
+              "outline-variant": "rgba(242, 74, 13, 0.2)",
+              "inverse-primary": "#ff7d4d",
+              "surface-variant": "rgba(255, 255, 255, 0.03)",
+              "on-secondary-fixed-variant": "#1a243d",
+              "on-primary-fixed": "#3a0a00",
+              "outline": "rgba(255, 255, 255, 0.1)",
+              "tertiary-container": "rgba(34, 197, 94, 0.1)",
+              "surface-dim": "#0a0f1d",
+              "on-surface-variant": "#cbd5e1",
+              "on-secondary-fixed": "#0a0f1d",
+              "secondary-fixed": "#d1d8e5",
+              "on-primary-fixed-variant": "#862200",
+              "surface-container-high": "#1a243d",
+              "primary-fixed": "#ffdbd1",
+              "on-error-container": "#ef4444",
+              "surface-container-highest": "rgba(255, 255, 255, 0.05)",
+              "primary-container": "rgba(242, 74, 13, 0.1)",
+              "background": "#0a0f1d",
+              "inverse-on-surface": "#0a0f1d",
+              "tertiary": "#22c55e",
+              "surface-container-low": "#0d1428",
+              "on-primary-container": "#f24a0d",
+              "surface-tint": "#f24a0d",
+              "inverse-surface": "#f8f6f5",
+              "on-tertiary-container": "#22c55e",
+              "on-secondary": "#f8f6f5",
+              "on-surface": "#f8f6f5",
+              "surface-container": "#111b33",
+              "secondary-fixed-dim": "#a3b1cc",
+              "on-primary": "#ffffff",
+              "primary-fixed-dim": "#ffb59f",
+              "on-tertiary-fixed-variant": "#065f46",
+              "on-secondary-container": "#cbd5e1",
+              "on-background": "#f8f6f5",
+              "on-error": "#ffffff",
+              "secondary-container": "#2a3655",
+              "tertiary-fixed": "#d1fae5",
+              "tertiary-fixed-dim": "#6ee7b7"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Space Grotesk"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .timer-glow {
+            text-shadow: 0 0 20px rgba(242, 74, 13, 0.4);
+        }
+        .glass-panel {
+            background: rgba(26, 36, 61, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .kinetic-bg {
+            background: radial-gradient(circle at center, #1a243d 0%, #0a0f1d 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body overflow-hidden">
+<!-- Modal Overlay Backdrop -->
+<div class="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-6">
+<!-- Minigames Modal -->
+<div class="relative w-full max-w-xl glass-panel p-10 flex flex-col items-center">
+<!-- Close Button -->
+<button class="absolute top-6 right-6 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-3xl">close</span>
+</button>
+<!-- Header Section -->
+<div class="text-center mb-10">
+<span class="text-[10px] text-primary font-bold tracking-[0.4em] uppercase mb-2 block">Additional Features</span>
+<h1 class="text-3xl font-headline font-extrabold tracking-tighter text-white uppercase">SELECT Mini Game</h1>
+<div class="w-16 h-1 bg-primary mx-auto mt-4"></div>
+</div>
+<!-- Buttons Stack -->
+<div class="w-full space-y-4">
+<!-- Speed Clicker -->
+<button class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
+<div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">ads_click</span>
+</div>
+<div class="text-left flex-1">
+<h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">Daily Mystery</h3>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">오름차순으로 빠르게 버튼을 눌러서 상대와 경쟁하세요.</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+</div>
+<!-- Hover Glow Decor -->
+<div class="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+</button>
+<!-- Color Rush -->
+<button class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
+<div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">extension</span>
+</div>
+<div class="text-left flex-1">
+<h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">꼬맨틀</h3>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">금일 단어의 유사도 순위를 확인하고, 상위권 단어들을 힌트 삼아 연관 단어를 던져 정답을 도출하세요.</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+</div>
+<div class="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+</button>
+<!-- Memory Match -->
+<button class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
+<div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl">palette</span>
+</div>
+<div class="text-left flex-1">
+<h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">게임 준비 중입니다...</h3>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">게임 준비 중입니다...</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+</div>
+<div class="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+</button>
+</div>
+</div>
+</div>
+</body></html>
