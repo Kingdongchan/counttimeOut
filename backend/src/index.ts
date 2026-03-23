@@ -1,6 +1,6 @@
 // =============================================
 // backend/src/index.ts
-// 닉네임 중복 방지 및 리더보드 최적화 버전
+// 자정 리셋 및 데이터 이전(Daily -> History) 최적화 버전
 // =============================================
 
 interface Env {
@@ -33,7 +33,6 @@ export default {
       if (path === "/api/auth/check" && method === "GET") return await handleAuthCheck(request, env, corsHeaders);
       if (path === "/api/auth/logout" && method === "POST") return await handleLogout(request, env, corsHeaders);
 
-      // 닉네임 관련 API
       if (path === "/api/nickname/set" && method === "POST") return await handleNicknameSet(request, env, corsHeaders);
       if (path === "/api/nickname/change" && method === "POST") return await handleNicknameChange(request, env, corsHeaders);
       if (path === "/api/nickname/check" && method === "GET") return await handleNicknameCheck(request, env, corsHeaders);
@@ -106,9 +105,6 @@ async function handleLogout(request: Request, env: Env, corsHeaders: any) {
   return jsonResponse({ success: true }, corsHeaders);
 }
 
-/**
- * [수정됨] 닉네임 설정 시 중복 체크 강화
- */
 async function handleNicknameSet(request: Request, env: Env, corsHeaders: any) {
   const userId = await getAuthUserId(request, env);
   const { nickname } = await request.json() as { nickname: string };
@@ -118,13 +114,11 @@ async function handleNicknameSet(request: Request, env: Env, corsHeaders: any) {
   const today = new Date(Date.now() + (9 * 60 * 60 * 1000)).toISOString().split("T")[0];
 
   try {
-    // 1. 중복 확인 (이미 사용 중인지)
     const existing = await env.DB.prepare("SELECT id FROM users WHERE nickname = ?").bind(trimmedNickname).first();
     if (existing) {
       return jsonResponse({ error: "duplicate", message: "이미 사용 중인 닉네임입니다." }, corsHeaders, 400);
     }
 
-    // 2. 업데이트
     await env.DB.prepare("UPDATE users SET nickname = ?, nickname_changed_at = ? WHERE id = ?").bind(trimmedNickname, Date.now(), userId).run();
     await env.DB.prepare("UPDATE daily_record SET nickname = ? WHERE user_id = ? AND date = ?").bind(trimmedNickname, userId, today).run();
     
@@ -137,9 +131,6 @@ async function handleNicknameSet(request: Request, env: Env, corsHeaders: any) {
   }
 }
 
-/**
- * [수정됨] 닉네임 변경 시 중복 체크 강화
- */
 async function handleNicknameChange(request: Request, env: Env, corsHeaders: any) {
   const userId = await getAuthUserId(request, env);
   const { nickname } = await request.json() as { nickname: string };
@@ -275,22 +266,31 @@ async function handleAdminForceStop(request: Request, env: Env, corsHeaders: any
   return jsonResponse({ success: true }, corsHeaders);
 }
 
+/**
+ * [수정됨] 자정 리셋 로직: 어제 기록 이전 문제 해결
+ */
 async function midnightReset(env: Env) {
-  const now = new Date(Date.now() + (9 * 60 * 60 * 1000));
-  const today = now.toISOString().split("T")[0];
-  const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000)).toISOString().split("T")[0];
+  const kstNow = new Date(Date.now() + (9 * 60 * 60 * 1000));
+  const today = kstNow.toISOString().split("T")[0];
 
+  // 1. '오늘'보다 이전 날짜의 모든 데이터를 history_record로 이전 (ON CONFLICT 적용)
+  // user_id와 date가 동일할 경우 더 높은 점수로 업데이트하도록 처리
   await env.DB.prepare(`
     INSERT INTO history_record (user_id, date, count) 
     SELECT user_id, date, today_accumulated_ms 
     FROM daily_record 
     WHERE date < ? AND today_accumulated_ms > 0
+    ON CONFLICT(user_id, date) DO UPDATE SET 
+    count = MAX(history_record.count, excluded.count)
   `).bind(today).run();
 
+  // 2. 이전이 완료된 데이터만 삭제
   await env.DB.prepare("DELETE FROM daily_record WHERE date < ?").bind(today).run();
+  
+  // 3. 30일이 지난 오래된 역사 기록 정리
   await env.DB.prepare("DELETE FROM history_record WHERE date < date('now', '-30 days', '+9 hours')").run();
   
-  console.log(`[${today}] 자정 리셋 완료.`);
+  console.log(`[${today}] 자정 리셋: 데이터 이전 및 청소가 완료되었습니다.`);
 }
 
 async function getAuthUserId(request: Request, env: Env): Promise<string | null> {
