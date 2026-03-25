@@ -13,7 +13,7 @@ function createMiniGameOverlay() {
         <div class="w-full space-y-4">
             <button onclick="window.open('https://daily-mystery.pages.dev/', '_blank')" class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
                 <div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
-                    <span class="material-symbols-outlined text-primary text-3xl">ads_click</span>
+                    <span class="material-symbols-outlined text-primary text-3xl">Cards</span>
                 </div>
                 <div class="text-left flex-1">
                     <h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">Daily Mystery</h3>
@@ -31,6 +31,19 @@ function createMiniGameOverlay() {
                 <div class="text-left flex-1">
                     <h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">ONE SHOT</h3>
                     <p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">금일 단어의 유사도 순위를 확인하고, 상위권 단어들을 힌트 삼아 연관 단어를 던져 정답을 도출하세요.</p>
+                </div>
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="material-symbols-outlined text-primary">chevron_right</span>
+                </div>
+                <div class="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+            </button>
+            <button onclick="window.open('https://n-back-game.pages.dev', '_blank')" class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
+                <div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
+                    <span class="material-symbols-outlined text-primary text-3xl">ads_click</span>
+                </div>
+                <div class="text-left flex-1">
+                    <h3 class="font-headline font-bold text-lg text-white group-hover:text-primary transition-colors uppercase tracking-tight">N-BACK CHALLENGE</h3>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-widest font-medium">패턴을 기억해서 집중력을 길러보세요.</p>
                 </div>
                 <div class="opacity-0 group-hover:opacity-100 transition-opacity">
                     <span class="material-symbols-outlined text-primary">chevron_right</span>
