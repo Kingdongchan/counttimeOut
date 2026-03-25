@@ -45,20 +45,67 @@
       theme: {
         extend: {
           colors: {
-            primary: "#f24a0d",
-            "background-dark": "#0a0f1d",
-            "navy-accent": "#1a243d",
-            "glass-white": "rgba(255, 255, 255, 0.05)",
-            "glass-border": "rgba(255, 255, 255, 0.1)",
+            "primary": "#f24a0d",
+            "on-tertiary-fixed": "#064e3b",
+            "on-tertiary": "#ffffff",
+            "surface-container-lowest": "#050810",
+            "surface": "#0a0f1d",
+            "secondary": "#1a243d",
+            "error": "#ef4444",
+            "error-container": "rgba(239, 68, 68, 0.1)",
+            "surface-bright": "#1a243d",
+            "outline-variant": "rgba(242, 74, 13, 0.2)",
+            "inverse-primary": "#ff7d4d",
+            "surface-variant": "rgba(255, 255, 255, 0.03)",
+            "on-secondary-fixed-variant": "#1a243d",
+            "on-primary-fixed": "#3a0a00",
+            "outline": "rgba(255, 255, 255, 0.1)",
+            "tertiary-container": "rgba(34, 197, 94, 0.1)",
+            "surface-dim": "#0a0f1d",
+            "on-surface-variant": "#cbd5e1",
+            "on-secondary-fixed": "#0a0f1d",
+            "secondary-fixed": "#d1d8e5",
+            "on-primary-fixed-variant": "#862200",
+            "primary-fixed": "#ffdbd1",
+            "on-error-container": "#ef4444",
+            "surface-container-highest": "rgba(255, 255, 255, 0.05)",
+            "primary-container": "rgba(242, 74, 13, 0.1)",
+            "background": "#0a0f1d",
+            "inverse-on-surface": "#0a0f1d",
+            "tertiary": "#22c55e",
+            "surface-container-low": "#0d1428",
+            "on-primary-container": "#f24a0d",
+            "surface-tint": "#f24a0d",
+            "inverse-surface": "#f8f6f5",
+            "on-tertiary-container": "#22c55e",
+            "on-secondary": "#f8f6f5",
+            "on-surface": "#f8f6f5",
+            "surface-container": "#111b33",
+            "secondary-fixed-dim": "#a3b1cc",
+            "on-primary": "#ffffff",
+            "primary-fixed-dim": "#ffb59f",
+            "on-tertiary-fixed-variant": "#065f46",
+            "on-secondary-container": "#cbd5e1",
+            "on-background": "#f8f6f5",
+            "on-error": "#ffffff",
+            "secondary-container": "#2a3655",
+            "tertiary-fixed": "#d1fae5",
+            "tertiary-fixed-dim": "#6ee7b7",
+            "background-dark": "#0a0f1d", // Keep original for potential references
+            "navy-accent": "#1a243d", // Keep original for potential references
+            "glass-white": "rgba(255, 255, 255, 0.05)", // Keep original for potential references
+            "glass-border": "rgba(255, 255, 255, 0.1)", // Keep original for potential references
           },
           fontFamily: {
-            display: ["Space Grotesk", "sans-serif"],
+            "headline": ["Space Grotesk", "sans-serif"],
+            "body": ["Space Grotesk", "sans-serif"],
+            "display": ["Space Grotesk", "sans-serif"] // Keep original for potential references
           },
           borderRadius: {
-            DEFAULT: "0.25rem",
-            lg: "0.5rem",
-            xl: "0.75rem",
-            full: "9999px",
+            "DEFAULT": "0.125rem", // Use prac.html's default
+            "lg": "0.5rem", // Keep existing, or match prac.html's 0.25rem? prac.html has 0.25, index has 0.5. Let's use 0.25 as it seems to be the preferred in prac.html
+            "xl": "0.75rem", // Keep existing
+            "full": "9999px", // Keep existing
           },
         },
       },
@@ -109,6 +156,22 @@
     }
     .section-highlight {
       animation: highlight 2s ease-out;
+    }
+
+    /* Styles from prac.html for donation modal */
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-panel {
+        background: rgba(26, 36, 61, 0.4);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .kinetic-bg {
+        background: radial-gradient(circle at center, #1a243d 0%, #0a0f1d 100%);
+    }
+    .a4-container {
+        aspect-ratio: 1 / 1.414;
     }
   </style>
 </head>
@@ -823,7 +886,8 @@
   <script src="js/timer.js"></script>
   <script src="js/chat.js"></script>
   <script src="js/leaderboard.js?v=301"></script>
-  <script src="js/language.js"></script> <!-- Added language.js -->
+  <script src="js/language.js"></script>
+  <script src="js/donation.js"></script> <!-- Added language.js -->
   <script src="js/minigame.js"></script>
   <script>
       window.API_BASE = "https://counttimeout-backend.samesamechan0412.workers.dev";
