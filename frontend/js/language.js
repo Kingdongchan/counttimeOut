@@ -5,7 +5,7 @@ const translations = {
         'language_switcher': 'KR / EN',
         'rules_title': '규칙',
         'donate_link': '후원하기',
-        'rewards_link': '후원 공지',
+        'rewards_link': '기부 증서',
         'minigame_link': '미니 게임',
         'update_notes_link': '업데이트 노트',
         'login_button': '구글 로그인',
