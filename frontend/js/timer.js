@@ -20,7 +20,7 @@ let syncInterval = null;
 var current_api = window.API_BASE || "https://counttimeout-backend.samesamechan0412.workers.dev";
 
 // DB 업데이트 주기 (ms)
-const DB_SYNC_INTERVAL = 30000; 
+const DB_SYNC_INTERVAL = 60000; 
 
 // =============================================
 // transTime(ms)

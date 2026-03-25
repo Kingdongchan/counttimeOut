@@ -202,10 +202,19 @@ async function handleLeaderboard(request: Request, env: Env, corsHeaders: any) {
     return jsonResponse({ leaderboard: results }, corsHeaders);
   } else {
     const { results } = await env.DB.prepare(`
-      SELECT u.nickname, u.picture, d.today_accumulated_ms as ms FROM daily_record d
+      SELECT 
+        u.nickname, 
+        u.picture, 
+        d.today_accumulated_ms as ms,
+        CASE 
+          WHEN (strftime('%s', 'now') - strftime('%s', d.updated_at)) < 90 THEN 1 
+          ELSE 0 
+        END as is_online
+      FROM daily_record d
       JOIN users u ON d.user_id = u.id
       WHERE d.date = ? AND d.today_accumulated_ms > 0
-      ORDER BY d.today_accumulated_ms DESC LIMIT 100
+      ORDER BY ms DESC 
+      LIMIT 100
     `).bind(today).all();
     return jsonResponse({ leaderboard: results }, corsHeaders);
   }
