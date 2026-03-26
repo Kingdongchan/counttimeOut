@@ -16,13 +16,10 @@ const donationModalHTML = `
       <div class="w-16 h-1 bg-primary mx-auto mt-4"></div>
     </div>
     <!-- Image Section (A4 Placeholder) -->
-    <div class="w-full mb-8 flex justify-center">
-      <div class="w-full a4-container bg-white rounded-lg shadow-2xl border border-white/10 relative overflow-hidden">
-        <!-- Placeholder visual feedback -->
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="material-symbols-outlined text-slate-200 text-6xl">description</span>
+    <div class="w-full mb-6 flex justify-center">
+      <div class="w-full max-w-2xl h-64 bg-white rounded-lg shadow-xl border border-slate-200 relative overflow-hidden flex items-center justify-center">
+        <span class="material-symbols-outlined text-slate-200 text-5xl">description</span>
         </div>
-      </div>
     </div>
     <!-- Donation Stats -->
     <div class="w-full text-center py-6 border-t border-white/5">

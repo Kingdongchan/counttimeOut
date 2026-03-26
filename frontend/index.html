@@ -872,7 +872,41 @@
       </button>
     </div>
   </div>
+  <!-- =============================================
+       모바일 하단 메뉴 탭
+       ============================================= -->
+  <nav class="md:hidden fixed bottom-6 left-6 right-6 z-[100] h-20 bg-[#0F1B33]/80 backdrop-blur-2xl rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.6)] border border-white/5 px-2 flex items-center justify-around">
+    
+    <a href="#rules" class="flex-1 flex flex-col items-center justify-center group active:scale-90 transition-all">
+        <span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-[24px]">info</span>
+        <span class="text-[10px] font-bold text-slate-500 group-hover:text-primary mt-1">규칙</span>
+    </a>
+    
+    <button onclick="openModal('hall-of-fame-overlay')" class="flex-1 flex flex-col items-center justify-center group active:scale-90 transition-all">
+        <span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-[24px]">volunteer_activism</span>
+        <span class="text-[10px] font-bold text-slate-500 group-hover:text-primary mt-1">후원하기</span>
+    </button>
 
+    <button onclick="openModal('rewards-overlay')" class="flex-1 flex flex-col items-center justify-center group active:scale-90 transition-all">
+        <span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-[24px]">workspace_premium</span>
+        <span class="text-[10px] font-bold text-slate-500 group-hover:text-primary mt-1">기부 증서</span>
+    </button>
+
+    <button onclick="openModal('minigame-overlay')" class="flex-1 flex flex-col items-center justify-center group active:scale-90 transition-all">
+        <span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-[24px]">sports_esports</span>
+        <span class="text-[10px] font-bold text-slate-500 group-hover:text-primary mt-1">미니 게임</span>
+    </button>
+
+    <a href="https://www.notion.so/CountTimeOut-32ce437126b080709668c8b5c9238423?source=copy_link" target="_blank" rel="noopener noreferrer" class="flex-1 flex flex-col items-center justify-center group active:scale-90 transition-all">
+        <span class="material-symbols-outlined text-slate-400 group-hover:text-primary text-[24px]">history_edu</span>
+        <span class="text-[10px] font-bold text-slate-500 group-hover:text-primary mt-1">업데이트</span>
+    </a>
+
+  </nav>
+<div class="h-24 md:hidden"></div>
+
+<div class="h-20 md:hidden"></div>
+<div class="h-16 md:hidden"></div>
   <!-- =============================================
        JavaScript 로드 (순서 중요!)
        1. auth.js: 로그인 처리 (가장 먼저 - 다른 모듈의 선행 조건)
@@ -1008,5 +1042,6 @@
           });
         }
   </script>
+  
 </body>
 </html>
