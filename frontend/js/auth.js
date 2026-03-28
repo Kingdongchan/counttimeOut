@@ -403,17 +403,86 @@ async function getAdminPower(action, payload = {}) {
   const sessionToken = localStorage.getItem("sessionToken");
   const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
   if (userInfo.role !== "admin") { alert("관리자 권한이 없습니다."); return; }
-  const endpoints = { "force-stop": "/api/admin/force-stop", "midnight-reset": "/api/admin/midnight-reset" };
+  const endpoints = {
+    "ip-ban": "/api/admin/ip-ban",
+    "ip-unban": "/api/admin/ip-unban",
+    "ip-bans": "/api/admin/ip-bans",
+  };
   const endpoint = endpoints[action];
   if (!endpoint) return;
   try {
     const res = await fetch(`${API_BASE}${endpoint}`, {
-      method: "POST",
+      method: action === "ip-bans" ? "GET" : "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sessionToken}` },
-      body: JSON.stringify(payload),
+      body: action === "ip-bans" ? undefined : JSON.stringify(payload),
     });
     return await res.json();
   } catch (err) { console.error("[관리자] API 호출 실패:", err); }
+}
+
+async function promptIpBan() {
+  const ip = prompt("차단할 IP를 입력하세요:");
+  if (!ip) return;
+
+  const reason = prompt("차단 사유를 입력하세요:", "도배/악성 행위");
+  const result = await getAdminPower("ip-ban", { ip, reason });
+  if (result?.success) {
+    alert(`IP 차단 완료: ${ip}`);
+    await refreshBanList();
+  } else if (result?.error) {
+    alert(result.error);
+  }
+}
+
+async function promptIpUnban() {
+  const ip = prompt("차단 해제할 IP를 입력하세요:");
+  if (!ip) return;
+
+  const result = await getAdminPower("ip-unban", { ip });
+  if (result?.success) {
+    alert(`IP 차단 해제 완료: ${ip}`);
+    await refreshBanList();
+  } else if (result?.error) {
+    alert(result.error);
+  }
+}
+
+async function refreshBanList() {
+  const listEl = document.getElementById("admin-ban-list");
+  if (!listEl) return;
+
+  const result = await getAdminPower("ip-bans");
+  const bans = result?.bans || [];
+
+  if (bans.length === 0) {
+    listEl.innerHTML = '<div class="text-xs text-slate-500">현재 차단된 IP가 없습니다.</div>';
+    return;
+  }
+
+  listEl.innerHTML = bans.map((ban) => `
+    <div class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/5 px-3 py-2">
+      <div class="min-w-0">
+        <div class="text-sm font-semibold text-white break-all">${escapeAdminHtml(ban.ip_address)}</div>
+        <div class="text-[11px] text-slate-400">${escapeAdminHtml(ban.reason || "사유 없음")} · ${escapeAdminHtml(ban.created_at || "")}</div>
+      </div>
+      <button
+        onclick="getAdminPower('ip-unban', { ip: '${escapeAdminAttribute(ban.ip_address)}' }).then(refreshBanList)"
+        class="shrink-0 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
+      >
+        해제
+      </button>
+    </div>
+  `).join("");
+}
+
+function escapeAdminHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text || "";
+  return div.innerHTML;
+}
+
+function escapeAdminAttribute(text) {
+  return String(text || "").replace(/'/g, "\\'");
 }
 
 // =============================================
@@ -438,6 +507,10 @@ function updateUserUI(user) {
   const chatSendBtn = document.getElementById("chat-send-btn");
   if (chatInput) { chatInput.disabled = false; chatInput.placeholder = "메시지를 입력하세요..."; }
   if (chatSendBtn) chatSendBtn.disabled = false;
+
+  if (user.role === "admin") {
+    refreshBanList();
+  }
 }
 
 function showLoginUI() {
