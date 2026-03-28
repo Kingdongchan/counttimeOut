@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- 구글 프로필 사진 URL
     picture             TEXT,
 
+    -- 마지막으로 감지된 접속 IP
+    -- ⚠️ 중요: 관리자 IP 밴 시 시간 말소 대상 유저를 찾는 기준
+    last_known_ip       TEXT,
+
     -- 권한 구분: 'user' | 'admin'
     -- ⚠️ 보안: 프론트엔드 표시용 참고값. 실제 권한 검증은 반드시 백엔드(Workers)에서 이중 검증할 것!
     role                TEXT NOT NULL DEFAULT 'user',
@@ -43,6 +47,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 닉네임 중복 방지 인덱스 (UNIQUE 제약이 있지만 조회 속도도 향상)
 CREATE INDEX IF NOT EXISTS idx_users_nickname ON users(nickname);
+
+-- users: IP 밴 시 마지막 접속 IP로 유저를 빠르게 찾기 위함
+CREATE INDEX IF NOT EXISTS idx_users_last_known_ip ON users(last_known_ip);
 
 
 -- =============================================
@@ -140,6 +147,28 @@ CREATE TABLE IF NOT EXISTS chat_logs (
 
 
 -- =============================================
+-- 4-1. banned_ips 테이블
+-- 목적: 관리자 패널에서 차단한 IP 저장
+-- 용도: 차단된 IP는 타이머가 00:00:00에 고정되고 채팅도 차단됨
+-- =============================================
+CREATE TABLE IF NOT EXISTS banned_ips (
+    -- 차단된 IP 주소
+    ip_address          TEXT PRIMARY KEY,
+
+    -- 차단 사유
+    reason              TEXT,
+
+    -- 차단을 수행한 관리자 user_id
+    banned_by_user_id   TEXT,
+
+    -- 차단 시각
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (banned_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+
+-- =============================================
 -- 5. sessions 테이블
 -- 목적: 자동 로그인 유지를 위한 세션 토큰 관리
 -- 연결: users.id → user_id
@@ -173,6 +202,10 @@ CREATE INDEX IF NOT EXISTS idx_chat_logs_user_id
 CREATE INDEX IF NOT EXISTS idx_chat_logs_created_at
     ON chat_logs(created_at DESC);
 
+-- chat_logs: 오래된 메시지 정리 시 id 기준 삭제 최적화
+CREATE INDEX IF NOT EXISTS idx_chat_logs_id
+    ON chat_logs(id DESC);
+
 -- history_record: 날짜별 랭킹 조회 빠르게 (명예의 전당)
 CREATE INDEX IF NOT EXISTS idx_history_record_date
     ON history_record(date);
@@ -188,3 +221,7 @@ CREATE INDEX IF NOT EXISTS idx_daily_accumulated_ms
 -- sessions: user_id로 세션 조회 빠르게 (로그인 상태 확인)
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id
     ON sessions(user_id);
+
+-- banned_ips: 최근 차단 목록 조회 최적화
+CREATE INDEX IF NOT EXISTS idx_banned_ips_created_at
+    ON banned_ips(created_at DESC);

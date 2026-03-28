@@ -11,6 +11,11 @@ compatibility_date = "2024-01-01"
 # ⚠️ 필수 수정: Cloudflare 대시보드 우측 상단의 Account ID로 교체
 account_id = "12ed2454719caeee89fe4e8cecbd5c0b"
 
+# ⚠️ 중요:
+# Cloudflare cron 은 UTC 기준이므로 한국 자정(00:00 KST)은 매일 15:00 UTC 입니다.
+[triggers]
+crons = ["0 15 * * *"]
+
 # --- Cloudflare D1 데이터베이스 연결 ---
 [[d1_databases]]
 binding = "DB"                          # Workers 코드에서 env.DB로 접근
