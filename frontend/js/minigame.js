@@ -63,7 +63,7 @@ function createMiniGameOverlay() {
                 </div>
                 <div class="absolute -right-10 -bottom-10 w-24 h-24 bg-primary/5 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
             </button>
-            <button class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
+            <button onclick="window.open('https://stonebattlevs.pages.dev/', '_blank')" class="group relative w-full h-24 glass-panel hover:bg-white/5 overflow-hidden transition-all duration-300 active:scale-[0.98] flex items-center px-8 border-l-4 border-l-transparent hover:border-l-primary">
                 <div class="mr-6 bg-primary/10 p-3 rounded-lg group-hover:bg-primary/20 transition-colors">
                     <span class="material-symbols-outlined text-primary text-3xl">Keyboard</span>
                 </div>
