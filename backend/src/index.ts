@@ -700,9 +700,28 @@ async function ensureUserDailyRecord(env: Env, userId: string, nickname: string,
   `).bind(userId, nickname, date).run();
 }
 
-async function prepareDailyRecordForIncomingTimer(userId: string, today: string, incomingMs: number, env: Env) {
+// =============================================
+// [핵심 수정] 타이머 보정 함수
+//
+// 변경 이유:
+//   1. 기존 코드는 latestRecord.date === today 인 경우 safeIncomingMs 를 그대로 반환했습니다.
+//      이 경우 프론트가 자정을 가로질러 이전 날의 누적값을 포함한 큰 수를 보내도
+//      서버가 그대로 저장하는 버그가 있었습니다.
+//
+//   2. 수정된 로직은 today 레코드가 있더라도 서버에 저장된 현재값보다
+//      급격하게 큰 값이 들어오면 이전 날의 마지막 저장값을 차감하여 보정합니다.
+//
+// 허용 오차(JUMP_TOLERANCE_MS):
+//   네트워크 지연, 탭 비활성 등으로 단기간에 누적값이 튀는 것을 허용하는 범위입니다.
+//   5분(300,000ms) 이상 급증하면 어제 값을 차감하는 보정을 적용합니다.
+// =============================================
+
+const JUMP_TOLERANCE_MS = 5 * 60 * 1000; // 5분
+
+async function prepareDailyRecordForIncomingTimer(userId: string, today: string, incomingMs: number, env: Env): Promise<number> {
   const safeIncomingMs = clampMs(incomingMs);
 
+  // 가장 최근 daily_record 를 날짜 무관하게 가져옵니다.
   const latestRecord = await env.DB.prepare(`
     SELECT date, today_accumulated_ms
     FROM daily_record
@@ -711,23 +730,80 @@ async function prepareDailyRecordForIncomingTimer(userId: string, today: string,
     LIMIT 1
   `).bind(userId).first() as any;
 
+  // 레코드가 없으면 첫 접속이므로 incoming 값을 그대로 사용합니다.
   if (!latestRecord) {
     return safeIncomingMs;
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // [Case 1] 최근 레코드가 오늘 날짜인 경우
+  // ─────────────────────────────────────────────────────────────
   if (latestRecord.date === today) {
-    return safeIncomingMs;
+    const currentServerMs = Number(latestRecord.today_accumulated_ms || 0);
+
+    // 정상적인 증가: 서버 저장값 이상이고, 급격한 점프가 없으면 그대로 수락합니다.
+    if (safeIncomingMs >= currentServerMs && safeIncomingMs - currentServerMs <= JUMP_TOLERANCE_MS) {
+      return safeIncomingMs;
+    }
+
+    // ⚠️ 급격한 점프 감지:
+    // 프론트가 자정을 인식하지 못하고 어제 누적값을 포함한 큰 수를 보낸 경우입니다.
+    // 예) 어제 22시간 공부 후 자정을 넘겨 22시간 + 새벽 5분을 통째로 전송한 경우.
+    // 이 경우 history_record 에서 어제 마지막 저장값을 찾아 차감합니다.
+    if (safeIncomingMs - currentServerMs > JUMP_TOLERANCE_MS) {
+      const yesterdayMs = await getYesterdayHistoryMs(userId, today, env);
+      if (yesterdayMs > 0) {
+        // 어제 기록이 history 에 이미 이관된 경우: 어제 값을 차감합니다.
+        const corrected = clampMs(safeIncomingMs - yesterdayMs);
+        console.log(`[timer-jump] userId=${userId} incoming=${safeIncomingMs} server=${currentServerMs} yesterday=${yesterdayMs} corrected=${corrected}`);
+        return corrected;
+      }
+      // 어제 기록이 없으면 점프가 아닌 정상 증가로 간주합니다.
+      return safeIncomingMs;
+    }
+
+    // incoming 이 서버 저장값보다 작으면 (탭 교체, 페이지 리로드 등) 서버 값을 유지합니다.
+    // ⚠️ 중요: 절대로 서버 저장값을 줄이지 않습니다.
+    return currentServerMs;
   }
 
-  // ⚠️ 중요:
-  // 자정 이후에도 이전 날짜 daily_record 가 남아 있는 경우 먼저 history 로 이관합니다.
+  // ─────────────────────────────────────────────────────────────
+  // [Case 2] 최근 레코드가 이전 날짜인 경우
+  // 자정이 지났는데도 프론트가 이전 날짜 누적값을 그대로 들고 온 상황입니다.
+  // ─────────────────────────────────────────────────────────────
+
+  // 먼저 이전 날짜 데이터를 history 로 이관합니다.
   await normalizeDailyStateForUser(userId, env);
 
-  // ⚠️ 중요:
-  // 프론트가 자정을 놓쳐 누적값을 통째로 보낸 경우,
-  // 직전 날짜 마지막 저장분을 빼서 오늘 분량만 남깁니다.
   const previousDayMs = Number(latestRecord.today_accumulated_ms || 0);
-  return clampMs(Math.max(0, safeIncomingMs - previousDayMs));
+
+  // 들어온 값이 이전 날의 마지막 저장값과 같거나 작으면 자정을 막 넘긴 것이므로 0 으로 시작합니다.
+  if (safeIncomingMs <= previousDayMs) {
+    return 0;
+  }
+
+  // 이전 날의 누적분을 차감하여 오늘 분량만 추출합니다.
+  const todayMs = clampMs(safeIncomingMs - previousDayMs);
+  console.log(`[timer-crossday] userId=${userId} incoming=${safeIncomingMs} prevDay=${previousDayMs} todayMs=${todayMs}`);
+  return todayMs;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 어제 날짜의 history_record count 를 가져옵니다.
+// 자정을 넘긴 후 프론트에서 급격한 점프가 감지되었을 때 차감 기준으로 사용합니다.
+// ─────────────────────────────────────────────────────────────
+async function getYesterdayHistoryMs(userId: string, today: string, env: Env): Promise<number> {
+  // today 에서 하루 전 날짜를 계산합니다.
+  const todayMs = new Date(today).getTime();
+  const yesterdayKey = getKstDateKey(todayMs - DAY_MS + KST_OFFSET_MS);
+
+  const record = await env.DB.prepare(`
+    SELECT count
+    FROM history_record
+    WHERE user_id = ? AND date = ?
+  `).bind(userId, yesterdayKey).first() as any;
+
+  return Number(record?.count || 0);
 }
 
 async function resetUserTimerForBan(userId: string, env: Env) {
